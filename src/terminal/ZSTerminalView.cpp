@@ -1,26 +1,167 @@
 #include "ZSTerminalView.h"
+#include "ZSPuTTYBackendAdapter.h"
+#include "zs_view_calls.h"
 
 #include <QPainter>
+#include <QKeyEvent>
+#include <QGuiApplication>
 
 ZSTerminalView::ZSTerminalView(QQuickItem *parent)
     : QQuickPaintedItem(parent)
 {
     setRenderTarget(QQuickPaintedItem::FramebufferObject);
-    setAntialiasing(true);
+    setAntialiasing(false);
+    setAcceptedMouseButtons(Qt::AllButtons);
+    setFocus(true);
+    connect(&m_renderer, &ZSTerminalRenderer::resized, this, &ZSTerminalView::onRendererResized);
+    connect(&m_renderer, &ZSTerminalRenderer::contentChanged, this, &ZSTerminalView::onContentChanged);
+    onRendererResized();
+}
+
+ZSTerminalView::~ZSTerminalView() = default;
+
+void ZSTerminalView::onRendererResized()
+{
+    setImplicitWidth(m_renderer.image().width());
+    setImplicitHeight(m_renderer.image().height());
+    update();
+}
+
+void ZSTerminalView::onContentChanged()
+{
+    update();
 }
 
 void ZSTerminalView::paint(QPainter *painter)
 {
-    const QRect r = boundingRect().toRect();
-    painter->fillRect(r, QColor(QStringLiteral("#1c1e22")));
-    painter->setPen(QColor(QStringLiteral("#8a8f98")));
-    painter->drawText(r.adjusted(12, 12, -12, -12),
-                      Qt::AlignLeft | Qt::AlignTop,
-                      QStringLiteral("终端视图占位（M1）\n等待 M2/M3 接入 PuTTY 仿真后端"));
+    const QImage &img = m_renderer.image();
+    if (img.isNull()) {
+        painter->fillRect(boundingRect(), QColor(0, 0, 0));
+        return;
+    }
+    painter->drawImage(QPoint(0, 0), img);
 }
 
-void ZSTerminalView::appendOutput(const QString &text)
+void ZSTerminalView::setBackend(ZSPuTTYBackendAdapter *b)
 {
-    // M1 placeholder: not rendering actual data yet.
-    m_buffer.append(text);
+    m_backend = b;
+}
+
+void ZSTerminalView::configureGrid(int cols, int rows)
+{
+    m_renderer.setGrid(cols, rows);
+    onRendererResized();
+    update();
+}
+
+void ZSTerminalView::focusInEvent(QFocusEvent *event)
+{
+    QQuickPaintedItem::focusInEvent(event);
+    setFocus(true);
+}
+
+QByteArray ZSTerminalView::keyToBytes(QKeyEvent *e) const
+{
+    switch (e->key()) {
+    case Qt::Key_Return:
+    case Qt::Key_Enter:   return QByteArray("\r");
+    case Qt::Key_Backspace: return QByteArray("\b");
+    case Qt::Key_Tab:     return QByteArray("\t");
+    case Qt::Key_Escape:  return QByteArray("\x1b");
+    case Qt::Key_Up:      return QByteArray("\x1b[A");
+    case Qt::Key_Down:    return QByteArray("\x1b[B");
+    case Qt::Key_Right:   return QByteArray("\x1b[C");
+    case Qt::Key_Left:    return QByteArray("\x1b[D");
+    case Qt::Key_Home:    return QByteArray("\x1b[H");
+    case Qt::Key_End:     return QByteArray("\x1b[F");
+    default: break;
+    }
+    if (!e->text().isEmpty()) {
+        /* e->text() already carries the final byte(s): shifted chars, Ctrl-C
+         * (-> 0x03), etc. */
+        return e->text().toUtf8();
+    }
+    return QByteArray();
+}
+
+void ZSTerminalView::keyPressEvent(QKeyEvent *event)
+{
+    QByteArray bytes = keyToBytes(event);
+    if (!bytes.isEmpty() && m_backend) {
+        m_backend->sendData(bytes);
+        event->accept();
+    } else {
+        event->ignore();
+    }
+}
+
+void ZSTerminalView::keyReleaseEvent(QKeyEvent *event)
+{
+    event->ignore();
+}
+
+/* ------------------------------------------------------------------ */
+/* extern "C" view callbacks invoked by zs_putty_term.c                */
+/* ------------------------------------------------------------------ */
+
+extern "C" void zs_view_draw_text(void *host, int col, int row,
+    const wchar_t *text, int len, unsigned long attrs, int lineAttrs,
+    int fgE, unsigned fgR, unsigned fgG, unsigned fgB,
+    int bgE, unsigned bgR, unsigned bgG, unsigned bgB)
+{
+    auto *v = static_cast<ZSTerminalView *>(host);
+    if (!v) return;
+    ZSTrueColour tc;
+    if (fgE) { tc.fgEnabled = true; tc.fg = QColor(fgR, fgG, fgB); }
+    if (bgE) { tc.bgEnabled = true; tc.bg = QColor(bgR, bgG, bgB); }
+    v->renderer()->drawTextRun(col, row, text, len, attrs, lineAttrs, tc);
+}
+
+extern "C" void zs_view_draw_cursor(void *host, int col, int row,
+    const wchar_t *text, int len, unsigned long attrs, int lineAttrs,
+    int fgE, unsigned fgR, unsigned fgG, unsigned fgB,
+    int bgE, unsigned bgR, unsigned bgG, unsigned bgB)
+{
+    auto *v = static_cast<ZSTerminalView *>(host);
+    if (!v) return;
+    ZSTrueColour tc;
+    if (fgE) { tc.fgEnabled = true; tc.fg = QColor(fgR, fgG, fgB); }
+    if (bgE) { tc.bgEnabled = true; tc.bg = QColor(bgR, bgG, bgB); }
+    v->renderer()->drawCursor(col, row, text, len, attrs, lineAttrs, tc);
+}
+
+extern "C" void zs_view_refresh(void *host)
+{
+    auto *v = static_cast<ZSTerminalView *>(host);
+    if (v) v->update();
+}
+
+extern "C" void zs_view_set_title(void *host, const char *title)
+{
+    (void)host; (void)title;
+    /* M2: title is not surfaced yet. */
+}
+
+extern "C" void zs_view_request_resize(void *host, int w, int h)
+{
+    (void)host; (void)w; (void)h;
+    /* M2: we fix the grid ourselves; ignore backend resize requests. */
+}
+
+extern "C" void zs_view_palette_set(void *host, unsigned start, unsigned n,
+                                    const unsigned char *colours)
+{
+    auto *v = static_cast<ZSTerminalView *>(host);
+    if (v) v->renderer()->setPalette(start, n, colours);
+}
+
+extern "C" void zs_view_bell(void *host, int mode)
+{
+    (void)host; (void)mode;
+    /* M2: no audio bell. */
+}
+
+ZSPuTTYBackendAdapter *ZSTerminalView::backend() const
+{
+    return m_backend;
 }

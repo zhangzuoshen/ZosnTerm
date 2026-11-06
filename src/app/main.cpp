@@ -20,5 +20,17 @@ int main(int argc, char *argv[])
 
     if (engine.rootObjects().isEmpty())
         return -1;
+
+    // QML 创建了 ZSTerminalView；把它交给应用控制器，使 "新建串口" 能驱动引擎。
+    ZSTerminalView *termView = nullptr;
+    for (QObject *root : engine.rootObjects()) {
+        termView = root ? root->findChild<ZSTerminalView *>() : nullptr;
+        if (termView)
+            break;
+    }
+    zsApp.setTerminalView(termView);
+    if (!termView)
+        qWarning() << "[main] 未在 QML 树中找到 ZSTerminalView";
+
     return app.exec();
 }

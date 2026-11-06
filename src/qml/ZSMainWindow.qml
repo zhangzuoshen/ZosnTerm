@@ -33,6 +33,10 @@ Window {
                     onClicked: ZSApplication.newSerialSession()
                 }
                 ToolButton {
+                    text: "断开"
+                    onClicked: ZSApplication.closeSerialSession()
+                }
+                ToolButton {
                     text: "会话管理"
                     enabled: false   // M4 接入
                 }
@@ -42,7 +46,7 @@ Window {
                 }
                 Item { Layout.fillWidth: true }
                 Label {
-                    text: "M1 脚手架 · Qt6 + QML · PuTTY 0.85 待 M2 接入"
+                    text: "M2 引擎已接入 · PuTTY 0.85 终端仿真"
                     color: "#8a8f98"
                     font.pointSize: 10
                 }

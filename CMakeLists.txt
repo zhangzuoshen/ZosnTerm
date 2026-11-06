@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 project(ZosnTerm
     VERSION 0.1.0
     DESCRIPTION "个人多协议终端工具（阶段一：串口）"
-    LANGUAGES CXX)
+    LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -16,6 +16,11 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS
     Core Gui Quick Qml QuickControls2 SerialPort)
 qt_standard_project_setup()
 
+# PuTTY 0.85 terminal-emulation engine (vendored, MIT). Provides the static
+# library `putty_engine` consumed below. Must be declared before the executable
+# that links it.
+add_subdirectory(src/3rdparty/putty)
+
 # 可执行目标名为 ZosnTermApp，避免与 qt_add_qml_module 的 URI(ZosnTerm)
 # 在构建目录生成的 ZosnTerm/ 子目录撞名导致链接失败。
 qt_add_executable(ZosnTermApp
@@ -24,6 +29,8 @@ qt_add_executable(ZosnTermApp
     src/app/ZSApplication.cpp
     src/terminal/ZSTerminalView.h
     src/terminal/ZSTerminalView.cpp
+    src/terminal/ZSTerminalRenderer.h
+    src/terminal/ZSTerminalRenderer.cpp
     src/session/ZSSession.h
     src/session/ZSSession.cpp
     src/session/ZSSessionManager.h
@@ -71,7 +78,23 @@ target_link_libraries(ZosnTermApp PRIVATE
     Qt6::Qml
     Qt6::QuickControls2
     Qt6::SerialPort
+    putty_engine
 )
 
-# PuTTY 核心（vendored 0.85, MIT）。M1 仅 vendoring 源码。
-# M2 引擎适配启用 libputty 静态库：add_subdirectory(src/3rdparty/putty)
+# Headless smoke test: proves the embedded PuTTY engine drives the draw
+# callbacks without any Qt/GUI dependency. Links only putty_engine and supplies
+# its own zs_view_* stubs (see tests/headless_smoke.cpp).
+add_executable(zosn_headless_smoke tests/headless_smoke.cpp)
+target_include_directories(zosn_headless_smoke PRIVATE src/engine)
+target_link_libraries(zosn_headless_smoke PRIVATE putty_engine)
+
+# Discard the large fraction of the PuTTY engine we never call (GUI dialogs,
+# backend setup, etc.). The engine was compiled with per-function sections
+# to make this effective.
+if(MSVC)
+    target_link_options(ZosnTermApp PRIVATE /OPT:REF)
+elseif(APPLE)
+    target_link_options(ZosnTermApp PRIVATE -Wl,-dead_strip)
+elseif(UNIX)
+    target_link_options(ZosnTermApp PRIVATE -Wl,--gc-sections)
+endif()
