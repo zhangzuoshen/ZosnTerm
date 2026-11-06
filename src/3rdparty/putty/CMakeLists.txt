@@ -1,9 +1,18 @@
 # ZosnTerm: build PuTTY 0.85 terminal-emulation ENGINE as a static library.
 # We only compile the emulation core (terminal + ldisc + config + utils +
 # charset + eventloop + unicode). The serial transport is provided by Qt
-# (QSerialPort); we do NOT compile PuTTY own serial/network/ssh backends nor
-# its GUI. A small glue file in src/engine/ supplies the few platform_*/noise_*
-# symbols the engine references at link time.
+# (QSerialPort); we do NOT compile PuTTY's own serial/network/ssh backends
+# nor its GUI.
+#
+# === Platform policy (Linux / MinGW / MSVC share ONE source set) ===
+# We deliberately do NOT include PuTTY's windows/platform.h (870 lines,
+# pulling in winsock2.h, windows.h and GUI types). Instead unix/platform.h is
+# used on ALL platforms purely as a types/declarations header - it only needs
+# standard C plus sys/types.h, and NO_LIBDL below disables its dlfcn.h include.
+# All platform RUNTIME code is replaced by PuTTY's vendored stubs/no-*.c plus
+# two tiny stubs in src/engine/zs_putty_glue.c. Consequently the engine is
+# platform-neutral; the single platform-dependent function in the whole
+# engine is getticks() in zs_putty_glue.c.
 
 set(PUTTY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/putty-0.85)
 # Repository root, so the engine can pick up our C-isolation layer.
@@ -49,26 +58,31 @@ set(PUTTY_CHARSET_SRCS
     ${PUTTY_SRC}/charset/sbcsdat.c
 )
 
-# ZosnTerm C-isolation layer + front-end symbol supply, plus the two unix
-# helpers the glue references (platform_default_fontspec / _filename).
+# PuTTY's own platform stubs. no-storage.c replaces unix/storage.c (POSIX
+# file/dirent/pwd APIs) AND supplies host_ca_new(); the others replace the
+# GSS / logging / printing front ends.
+set(PUTTY_STUB_SRCS
+    ${PUTTY_SRC}/stubs/no-gss.c
+    ${PUTTY_SRC}/stubs/no-logging.c
+    ${PUTTY_SRC}/stubs/no-printing.c
+    ${PUTTY_SRC}/stubs/no-storage.c
+)
+
+# ZosnTerm C-isolation layer + front-end symbol supply.
+# unix/utils/{fontspec,filename}.c are pure string/stdio helpers (they are
+# only used to satisfy conf_get_fontspec/filename), portable to MinGW/MSVC.
 set(PUTTY_ZOSN_SRCS
     ${ZOSN_ROOT}/src/engine/zs_putty_term.c
     ${ZOSN_ROOT}/src/engine/zs_putty_glue.c
     ${PUTTY_SRC}/unix/utils/fontspec.c
     ${PUTTY_SRC}/unix/utils/filename.c
-    ${PUTTY_SRC}/unix/storage.c
-    ${PUTTY_SRC}/unix/utils/get_username.c
-    ${PUTTY_SRC}/unix/utils/make_dir_path.c
-    ${PUTTY_SRC}/utils/cert-expr.c
-    ${PUTTY_SRC}/stubs/no-gss.c
-    ${PUTTY_SRC}/stubs/no-logging.c
-    ${PUTTY_SRC}/stubs/no-printing.c
 )
 
 add_library(putty_engine STATIC
     ${PUTTY_CORE_SRCS}
     ${PUTTY_UTILS_SRCS}
     ${PUTTY_CHARSET_SRCS}
+    ${PUTTY_STUB_SRCS}
     ${PUTTY_ZOSN_SRCS}
 )
 
@@ -77,7 +91,7 @@ target_include_directories(putty_engine PUBLIC
     ${PUTTY_SRC}/terminal
     ${PUTTY_SRC}/utils
     ${PUTTY_SRC}/charset
-    ${PUTTY_SRC}/unix
+    ${PUTTY_SRC}/unix          # selects unix/platform.h on every platform
 )
 
 # zs_putty_term.c / zs_putty_glue.c live in src/engine and #include the
@@ -86,14 +100,14 @@ target_include_directories(putty_engine PRIVATE
     ${ZOSN_ROOT}/src/engine
 )
 
-target_compile_definitions(putty_engine PUBLIC
+target_compile_definitions(putty_engine PRIVATE
     PUTTY_VERSION="0.85"
     PUTTY_VERSION_STR="0.85"
+    NO_LIBDL          # unix/platform.h: skip dlfcn.h (absent on Windows)
 )
 
-# Per-function/data sections so --gc-sections (applied at the app link step)
-# can discard the large amount of engine code we never call (GUI dialogs,
-# backend setup, etc.).
+# Per-function/data sections so the linker can discard the large amount of
+# engine code we never call (GUI dialogs, backend setup, etc.).
 if(MSVC)
     target_compile_options(putty_engine PRIVATE /Gy)
 else()

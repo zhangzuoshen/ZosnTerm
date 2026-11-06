@@ -4,6 +4,7 @@
 #include "ZSPuTTYBackendAdapter.h"
 #include "ZSIConnection.h"
 
+#include <QtGlobal>   // Q_OS_WIN
 #include <QDebug>
 
 ZSApplication::ZSApplication(QObject *parent)
@@ -44,10 +45,15 @@ void ZSApplication::newSerialSession()
     adapter->setView(m_view);
 
     // M2 demo 参数。真实参数后续由会话配置提供（M4）。
-    // 注意：本机若无 /dev/ttyS0 设备，open() 会失败并上报错误信息，
+    // 设备名按平台取默认值；若该设备不存在，open() 会失败并上报，
     // 属预期行为，证明串口→引擎链路已接通。
+#if defined(Q_OS_WIN)
+    const QString defaultPort = QStringLiteral("COM1");
+#else
+    const QString defaultPort = QStringLiteral("/dev/ttyS0");
+#endif
     adapter->setConnectionParameters(
-        QStringLiteral("/dev/ttyS0"), 9600, 8, 1, ZS_PAR_NONE, ZS_FLOW_NONE);
+        defaultPort, 9600, 8, 1, ZS_PAR_NONE, ZS_FLOW_NONE);
 
     connect(adapter, &ZSPuTTYBackendAdapter::statusMessage,
             this, &ZSApplication::setStatusMessage);
@@ -66,7 +72,8 @@ void ZSApplication::newSerialSession()
     m_adapter = adapter;
 
     if (!adapter->open()) {
-        setStatusMessage(QStringLiteral("打开串口失败（检查设备 /dev/ttyS0 与权限）"));
+        setStatusMessage(
+            QStringLiteral("打开串口失败（检查设备 %1 与权限）").arg(defaultPort));
     }
 }
 

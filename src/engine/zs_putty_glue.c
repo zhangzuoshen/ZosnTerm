@@ -1,13 +1,37 @@
 /* ZosnTerm PuTTY engine: front-end symbols the engine references at link
  * time but which we (not PuTTY) must supply, because we are not building
- * PuTTY's own GUI / platform layer. Compiled as plain C, includes putty.h. */
+ * PuTTY's own GUI / platform layer. Compiled as plain C, includes putty.h.
+ *
+ * Platform policy: intentionally ZosnTerm-side only. PuTTY's platform
+ * runtime is replaced by the vendored stubs/no-*.c modules, so this file
+ * contains the ONLY platform-dependent code in the whole engine. */
+
+/* On Windows, windows.h MUST be included before putty.h: unix/platform.h
+ * defines BYTE / WCHAR as macros, which would corrupt the Win32 typedefs
+ * ("typedef unsigned char unsigned char") if the order was reversed.
+ * WIN32_LEAN_AND_MEAN / NOMINMAX keep Win32 macro pollution to a minimum. */
+#ifdef _WIN32
+#  ifndef WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
+#  endif
+#  ifndef NOMINMAX
+#    define NOMINMAX
+#  endif
+#  include <windows.h>
+   /* unix/platform.h defines CP_UTF8 as CS_UTF8; drop the Win32 65001
+    * definition first so the compiler does not warn about redefinition. */
+#  undef CP_UTF8
+#endif
 
 #include "putty.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include <time.h>
+
+#ifndef _WIN32
+#  include <time.h>
+#endif
 
 const char *const appname = "ZosnTerm";
 
@@ -65,17 +89,23 @@ void timer_change_notify(unsigned long next)
     (void)next;
 }
 
-/* Millisecond monotonic clock, used by run_timers() via GETTICKCOUNT. */
+/* Millisecond clock, used by run_timers() via GETTICKCOUNT (declared in
+ * unix/platform.h, which we use on ALL platforms as a pure type/declaration
+ * header). clock_gettime is POSIX; GetTickCount is Win32. */
 unsigned long getticks(void)
 {
+#ifdef _WIN32
+    return (unsigned long)GetTickCount();
+#else
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (unsigned long)(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+#endif
 }
 
-/* storage.c's get_setting() reads X resources via x_get_default; we have no X
- * server in this embedded engine, so always report "no default". Declaration
- * lives in unix/platform.h (char *x_get_default(const char *key);). */
+/* X-resource lookup, declared in unix/platform.h. Only unix/storage.c used
+ * it; with stubs/no-storage.c nothing calls it, but keep the definition so
+ * the symbol is satisfied on either platform. */
 char *x_get_default(const char *key)
 {
     (void)key;
@@ -86,10 +116,21 @@ char *x_get_default(const char *key)
  * Defined here as a static placeholder for the embedded engine. */
 const char commitid[] = "ZosnTerm-embedded";
 
-/* ---- Embedded-engine stubs for session-storage helpers we never use ----
- * We never load SSH host-certificate sessions in this serial terminal, so the
- * cert/host_ca machinery is stubbed. Declarations come from putty.h. */
-struct host_ca *host_ca_new(void) { return NULL; }
+/* ---- Minimal platform stubs -------------------------------------------
+ * We construct Conf directly and never touch disk-backed sessions, so the
+ * POSIX-only unix/utils/{get_username,make_dir_path}.c are replaced here.
+ * host_ca_new() and all settings storage APIs come from stubs/no-storage.c. */
+char *get_username(void)
+{
+    return dupstr("user");
+}
+
+char *make_dir_path(const char *path, mode_t mode)
+{
+    (void)path;
+    (void)mode;
+    return NULL;
+}
 
 void nonfatal(const char *fmt, ...)
 {

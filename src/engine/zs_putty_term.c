@@ -61,7 +61,9 @@ static void zs_tw_draw_trust_sigil(TermWin *win, int x, int y)
 static int zs_tw_char_width(TermWin *win, int uc)
 {
     (void)win;
-    int w = wcwidth((wchar_t)uc);
+    /* PuTTY's own implementation is portable; the C runtime wcwidth() is
+     * missing from some Windows toolchains (MSVCRT / older MinGW). */
+    int w = mk_wcwidth((unsigned int)uc);
     if (w < 0) w = 1;
     return w;
 }
