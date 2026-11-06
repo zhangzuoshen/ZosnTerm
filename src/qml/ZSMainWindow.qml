@@ -55,13 +55,16 @@ Window {
             Layout.fillHeight: true
         }
 
-        StatusBar {
+        Rectangle {
             Layout.fillWidth: true
-            background: Rectangle { color: "#26282d" }
+            Layout.preferredHeight: 28
+            color: "#26282d"
             Label {
+                anchors.fill: parent
+                leftPadding: 8
+                verticalAlignment: Qt.AlignVCenter
                 text: ZSApplication.statusMessage
                 color: "#c8ccd2"
-                padding: 6
                 font.pointSize: 10
             }
         }

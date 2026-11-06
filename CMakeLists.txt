@@ -12,13 +12,13 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-# ---- Qt6 ----
 find_package(Qt6 6.5 REQUIRED COMPONENTS
     Core Gui Quick Qml QuickControls2 SerialPort)
 qt_standard_project_setup()
 
-# ---- 应用可执行文件（C++ 业务代码，均带 ZS 前缀）----
-qt_add_executable(ZosnTerm
+# 可执行目标名为 ZosnTermApp，避免与 qt_add_qml_module 的 URI(ZosnTerm)
+# 在构建目录生成的 ZosnTerm/ 子目录撞名导致链接失败。
+qt_add_executable(ZosnTermApp
     src/app/main.cpp
     src/app/ZSApplication.h
     src/app/ZSApplication.cpp
@@ -46,18 +46,25 @@ qt_add_executable(ZosnTerm
     src/data/ZSSessionRepository.cpp
 )
 
-# ---- QML 模块：外壳 QML + 终端视图 C++ 类型 ----
-# ZSTerminalView 通过 qt_add_qml_module 随模块编译，QML 中以 <ZSTerminalView> 使用。
-qt_add_qml_module(ZosnTerm
+# QML 模块：外壳 QML + 终端视图 C++ 类型。URI=ZosnTerm，QML 中以 <ZSTerminalView> 使用。
+qt_add_qml_module(ZosnTermApp
     URI ZosnTerm
     VERSION 1.0
     QML_FILES
         src/qml/ZSMainWindow.qml
 )
 
-target_include_directories(ZosnTerm PRIVATE src)
+# 各业务子目录加入包含路径，使 #include "Xxx.h" 裸名可解析
+target_include_directories(ZosnTermApp PRIVATE
+    src/app
+    src/terminal
+    src/session
+    src/engine
+    src/platform
+    src/data
+)
 
-target_link_libraries(ZosnTerm PRIVATE
+target_link_libraries(ZosnTermApp PRIVATE
     Qt6::Core
     Qt6::Gui
     Qt6::Quick
@@ -66,7 +73,5 @@ target_link_libraries(ZosnTerm PRIVATE
     Qt6::SerialPort
 )
 
-# ---- PuTTY 核心（vendored 0.85, MIT）----
-# M1 仅 vendoring 源码（见 src/3rdparty/putty/）。
-# libputty 静态库编译与可执行文件链接在 M2 引擎适配阶段启用：
-# add_subdirectory(src/3rdparty/putty)
+# PuTTY 核心（vendored 0.85, MIT）。M1 仅 vendoring 源码。
+# M2 引擎适配启用 libputty 静态库：add_subdirectory(src/3rdparty/putty)
