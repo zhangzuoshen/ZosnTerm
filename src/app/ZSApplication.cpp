@@ -3,6 +3,7 @@
 #include "ZSTerminalView.h"
 #include "ZSPuTTYBackendAdapter.h"
 #include "ZSIConnection.h"
+#include "ZSSessionRepository.h"
 
 #include <QtGlobal>   // Q_OS_WIN
 #include <QSerialPortInfo>
@@ -11,6 +12,7 @@
 ZSApplication::ZSApplication(QObject *parent)
     : QObject(parent)
     , m_statusMessage(QStringLiteral("就绪"))
+    , m_repo(new ZSSessionRepository(this))
 {
 }
 
@@ -88,6 +90,16 @@ void ZSApplication::openWith(const QString &port, int baudRate, int dataBits,
 void ZSApplication::connectSerial(const QString &port, int baudRate, int dataBits,
                                  int stopBits, int parity, int flow)
 {
+    // M4：记住本次使用的配置，供下次启动自动恢复。
+    ZSSerialProfile last;
+    last.port = port;
+    last.baudRate = baudRate;
+    last.dataBits = dataBits;
+    last.stopBits = stopBits;
+    last.parity = parity;
+    last.flow = flow;
+    m_repo->setLastProfile(last);
+
     openWith(port, baudRate, dataBits, stopBits, parity, flow);
 }
 
@@ -109,4 +121,63 @@ void ZSApplication::closeSerialSession()
         m_adapter->deleteLater();
         m_adapter = nullptr;
     }
+}
+
+/* ---------------- M4 会话管理 ---------------- */
+
+QStringList ZSApplication::sessionNames() const
+{
+    return m_repo->profileNames();
+}
+
+void ZSApplication::saveSession(const QString &name, const QString &port,
+                               int baudRate, int dataBits, int stopBits,
+                               int parity, int flow)
+{
+    QString nm = name.trimmed();
+    if (nm.isEmpty()) {
+        setStatusMessage(QStringLiteral("会话名不能为空"));
+        return;
+    }
+    ZSSerialProfile p;
+    p.port = port;
+    p.baudRate = baudRate;
+    p.dataBits = dataBits;
+    p.stopBits = stopBits;
+    p.parity = parity;
+    p.flow = flow;
+    m_repo->saveProfile(nm, p);
+    setStatusMessage(QStringLiteral("已保存会话：%1").arg(nm));
+}
+
+void ZSApplication::loadSession(const QString &name)
+{
+    ZSSerialProfile p = m_repo->loadProfile(name);
+    if (p.port.isEmpty()) {
+        setStatusMessage(QStringLiteral("未找到会话：%1").arg(name));
+        return;
+    }
+    emit connectionParamsApplied(p.port, p.baudRate, p.dataBits,
+                                 p.stopBits, p.parity, p.flow);
+}
+
+void ZSApplication::deleteSession(const QString &name)
+{
+    if (m_repo->deleteProfile(name))
+        setStatusMessage(QStringLiteral("已删除会话：%1").arg(name));
+    else
+        setStatusMessage(QStringLiteral("未找到会话：%1").arg(name));
+}
+
+QVariantMap ZSApplication::lastParams() const
+{
+    ZSSerialProfile p = m_repo->lastProfile();
+    QVariantMap m;
+    m.insert(QStringLiteral("port"), p.port);
+    m.insert(QStringLiteral("baudRate"), p.baudRate);
+    m.insert(QStringLiteral("dataBits"), p.dataBits);
+    m.insert(QStringLiteral("stopBits"), p.stopBits);
+    m.insert(QStringLiteral("parity"), p.parity);
+    m.insert(QStringLiteral("flow"), p.flow);
+    return m;
 }
