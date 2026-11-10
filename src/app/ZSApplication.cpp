@@ -5,6 +5,7 @@
 #include "ZSIConnection.h"
 
 #include <QtGlobal>   // Q_OS_WIN
+#include <QSerialPortInfo>
 #include <QDebug>
 
 ZSApplication::ZSApplication(QObject *parent)
@@ -31,29 +32,36 @@ void ZSApplication::setTerminalView(ZSTerminalView *view)
     m_view = view;
 }
 
-void ZSApplication::newSerialSession()
+QStringList ZSApplication::availablePorts() const
+{
+    QStringList ports;
+    const auto infos = QSerialPortInfo::availablePorts();
+    for (const auto &info : infos)
+        ports.append(info.portName());
+    if (ports.isEmpty()) {
+        // 无可用串口时给平台默认占位，方便手动输入/测试
+#if defined(Q_OS_WIN)
+        ports.append(QStringLiteral("COM1"));
+#else
+        ports.append(QStringLiteral("/dev/ttyS0"));
+#endif
+    }
+    return ports;
+}
+
+void ZSApplication::openWith(const QString &port, int baudRate, int dataBits,
+                            int stopBits, int parity, int flow)
 {
     if (!m_view) {
         setStatusMessage(QStringLiteral("未找到终端视图 (ZSTerminalView)"));
         return;
     }
-    if (m_adapter) {
+    if (m_adapter)
         closeSerialSession();
-    }
 
     auto *adapter = new ZSPuTTYBackendAdapter(this);
     adapter->setView(m_view);
-
-    // M2 demo 参数。真实参数后续由会话配置提供（M4）。
-    // 设备名按平台取默认值；若该设备不存在，open() 会失败并上报，
-    // 属预期行为，证明串口→引擎链路已接通。
-#if defined(Q_OS_WIN)
-    const QString defaultPort = QStringLiteral("COM1");
-#else
-    const QString defaultPort = QStringLiteral("/dev/ttyS0");
-#endif
-    adapter->setConnectionParameters(
-        defaultPort, 9600, 8, 1, ZS_PAR_NONE, ZS_FLOW_NONE);
+    adapter->setConnectionParameters(port, baudRate, dataBits, stopBits, parity, flow);
 
     connect(adapter, &ZSPuTTYBackendAdapter::statusMessage,
             this, &ZSApplication::setStatusMessage);
@@ -73,8 +81,25 @@ void ZSApplication::newSerialSession()
 
     if (!adapter->open()) {
         setStatusMessage(
-            QStringLiteral("打开串口失败（检查设备 %1 与权限）").arg(defaultPort));
+            QStringLiteral("打开串口失败（检查设备 %1 与权限）").arg(port));
     }
+}
+
+void ZSApplication::connectSerial(const QString &port, int baudRate, int dataBits,
+                                 int stopBits, int parity, int flow)
+{
+    openWith(port, baudRate, dataBits, stopBits, parity, flow);
+}
+
+void ZSApplication::newSerialSession()
+{
+    // 阶段一默认参数；真实配置由 QML 经 connectSerial() 提供。
+#if defined(Q_OS_WIN)
+    const QString defaultPort = QStringLiteral("COM1");
+#else
+    const QString defaultPort = QStringLiteral("/dev/ttyS0");
+#endif
+    openWith(defaultPort, 9600, 8, 1, ZS_PAR_NONE, ZS_FLOW_NONE);
 }
 
 void ZSApplication::closeSerialSession()
