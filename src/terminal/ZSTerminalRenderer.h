@@ -36,6 +36,13 @@ public:
     void setPalette(unsigned start, unsigned n, const unsigned char *colours);
     void initDefaultPalette();
 
+    /* ---- M5 外观设置 ---- */
+    void setFont(const QFont &font);
+    void setDefaultForeground(const QColor &c);
+    void setDefaultBackground(const QColor &c);
+    void setCursorColor(const QColor &c);
+    void setCursorShape(int shape);   // 0=block 1=underline 2=bar
+
     QImage &image() { return m_img; }
     const QImage &image() const { return m_img; }
 
@@ -47,6 +54,8 @@ signals:
     void contentChanged();
 
 private:
+    void recomputeCellMetrics();
+
     QColor resolveFg(unsigned long attrs, const ZSTrueColour &tc) const;
     QColor resolveBg(unsigned long attrs, const ZSTrueColour &tc) const;
 
@@ -58,6 +67,7 @@ private:
     QImage m_img;
     QColor m_palette[262];
     bool m_pendingRefresh = false;
+    int m_cursorShape = 0;
 
     /* Mirror of PuTTY's attribute bit layout (see putty.h). */
     static const unsigned long ATTR_FGMASK  = 0x000001FFU;

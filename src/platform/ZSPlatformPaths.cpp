@@ -19,6 +19,11 @@ QString ZSPlatformPaths::sessionStorePath()
     return appConfigDir() + QStringLiteral("/sessions.json");
 }
 
+QString ZSPlatformPaths::configPath()
+{
+    return appConfigDir() + QStringLiteral("/config.json");
+}
+
 QString ZSPlatformPaths::cacheDir()
 {
     return QStandardPaths::writableLocation(QStandardPaths::CacheLocation);

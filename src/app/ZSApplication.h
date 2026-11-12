@@ -9,13 +9,13 @@
 class ZSTerminalView;        /* forward decl; full def pulled in by .cpp */
 class ZSPuTTYBackendAdapter; /* forward decl */
 class ZSSessionRepository;   /* forward decl; M4 会话持久化 */
+class ZSConfigStore;         /* forward decl; M5 全局设置 */
 
 // 应用根对象：作为 QML 上下文属性 "ZSApplication" 暴露给 UI。
-// M2：持有并驱动一个 ZSPuTTYBackendAdapter（内嵌 PuTTY 终端仿真引擎），
-// 把串行数据接到 QML 中的 ZSTerminalView。
-// M3：补全串口参数配置与连接闭环——UI 可配置端口/波特率/数据位/停止位/
-// 校验/流控，经 connectSerial() 传入并真正打开 QSerialPort。
+// M2：持有并驱动一个 ZSPuTTYBackendAdapter（内嵌 PuTTY 终端仿真引擎）。
+// M3：补全串口参数配置与连接闭环。
 // M4：会话管理——保存/恢复命名串口配置，启动时自动填充上次配置。
+// M5：外观/字体/主题设置——从 ZSConfigStore 读取并套用到终端视图。
 class ZSApplication : public QObject
 {
     Q_OBJECT
@@ -27,13 +27,13 @@ public:
 
     /* 由 main() 在 QML 加载后调用：把 QML 树里的 ZSTerminalView 交给控制器。 */
     void setTerminalView(ZSTerminalView *view);
+    /* M5：注入全局配置存储（在 setTerminalView 之前调用）。 */
+    void setConfigStore(ZSConfigStore *store);
 
     /* 枚举当前系统可用串口名（如 COM3 / /dev/ttyUSB0）。供 QML 下拉填充。 */
     Q_INVOKABLE QStringList availablePorts() const;
 
-    /* 按给定参数建立串口会话。参数约定见 ZSPuTTYBackendAdapter::
-     * setConnectionParameters；parity/flow 用 ZS_PAR_* / ZS_FLOW_* 数值
-     * （parity 0..4 = None/Odd/Even/Mark/Space；flow 0..3 = None/XONXOFF/RTSCTS/DSRDTR）。 */
+    /* 按给定参数建立串口会话。parity/flow 用 ZS_PAR_* / ZS_FLOW_* 数值。 */
     Q_INVOKABLE void connectSerial(const QString &port, int baudRate,
                                    int dataBits, int stopBits,
                                    int parity, int flow);
@@ -43,18 +43,19 @@ public:
     Q_INVOKABLE void closeSerialSession();
 
     /* ---- M4 会话管理 ---- */
-    /* 已保存的命名会话名列表。 */
     Q_INVOKABLE QStringList sessionNames() const;
-    /* 保存当前参数为命名会话（覆盖同名）。 */
     Q_INVOKABLE void saveSession(const QString &name, const QString &port,
                                  int baudRate, int dataBits, int stopBits,
                                  int parity, int flow);
-    /* 加载命名会话：成功则发 connectionParamsApplied 让 UI 回填。 */
     Q_INVOKABLE void loadSession(const QString &name);
-    /* 删除命名会话。 */
     Q_INVOKABLE void deleteSession(const QString &name);
-    /* 上次使用的配置（QML 启动时恢复）。键：port/baudRate/dataBits/stopBits/parity/flow。 */
     Q_INVOKABLE QVariantMap lastParams() const;
+
+    /* ---- M5 外观/字体/主题设置 ---- */
+    /* 从 ZSConfigStore 读取外观设置并应用到终端视图。设置面板"应用"时调用。 */
+    Q_INVOKABLE void applySettings();
+    /* 等宽字体族列表，供设置面板下拉填充。 */
+    Q_INVOKABLE QStringList fontFamilies() const;
 
 signals:
     void statusMessageChanged(const QString &msg);
@@ -71,4 +72,5 @@ private:
     QPointer<ZSTerminalView> m_view;
     QPointer<ZSPuTTYBackendAdapter> m_adapter;
     ZSSessionRepository *m_repo = nullptr;
+    ZSConfigStore *m_config = nullptr;
 };

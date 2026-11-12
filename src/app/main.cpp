@@ -4,6 +4,7 @@
 
 #include "ZSApplication.h"
 #include "ZSTerminalView.h"
+#include "ZSConfigStore.h"
 
 int main(int argc, char *argv[])
 {
@@ -12,9 +13,12 @@ int main(int argc, char *argv[])
     QGuiApplication::setApplicationVersion(QStringLiteral("0.1.0"));
 
     ZSApplication zsApp;
+    ZSConfigStore configStore;          // M5：全局设置（构造即加载 config.json）
+    zsApp.setConfigStore(&configStore);
 
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("ZSApplication"), &zsApp);
+    engine.rootContext()->setContextProperty(QStringLiteral("ZSConfig"), &configStore);
     qmlRegisterType<ZSTerminalView>("ZosnTerm", 1, 0, "ZSTerminalView");
     engine.loadFromModule("ZosnTerm", "ZSMainWindow");
 

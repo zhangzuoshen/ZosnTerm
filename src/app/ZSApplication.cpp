@@ -4,9 +4,13 @@
 #include "ZSPuTTYBackendAdapter.h"
 #include "ZSIConnection.h"
 #include "ZSSessionRepository.h"
+#include "ZSConfigStore.h"
 
 #include <QtGlobal>   // Q_OS_WIN
 #include <QSerialPortInfo>
+#include <QColor>
+#include <QFont>
+#include <QFontDatabase>
 #include <QDebug>
 
 ZSApplication::ZSApplication(QObject *parent)
@@ -29,9 +33,15 @@ void ZSApplication::setStatusMessage(const QString &msg)
     }
 }
 
+void ZSApplication::setConfigStore(ZSConfigStore *store)
+{
+    m_config = store;
+}
+
 void ZSApplication::setTerminalView(ZSTerminalView *view)
 {
     m_view = view;
+    applySettings();   // M5：视图就绪后套用已保存外观
 }
 
 QStringList ZSApplication::availablePorts() const
@@ -41,7 +51,6 @@ QStringList ZSApplication::availablePorts() const
     for (const auto &info : infos)
         ports.append(info.portName());
     if (ports.isEmpty()) {
-        // 无可用串口时给平台默认占位，方便手动输入/测试
 #if defined(Q_OS_WIN)
         ports.append(QStringLiteral("COM1"));
 #else
@@ -105,7 +114,6 @@ void ZSApplication::connectSerial(const QString &port, int baudRate, int dataBit
 
 void ZSApplication::newSerialSession()
 {
-    // 阶段一默认参数；真实配置由 QML 经 connectSerial() 提供。
 #if defined(Q_OS_WIN)
     const QString defaultPort = QStringLiteral("COM1");
 #else
@@ -180,4 +188,46 @@ QVariantMap ZSApplication::lastParams() const
     m.insert(QStringLiteral("parity"), p.parity);
     m.insert(QStringLiteral("flow"), p.flow);
     return m;
+}
+
+/* ---------------- M5 外观/字体/主题设置 ---------------- */
+
+void ZSApplication::applySettings()
+{
+    if (!m_view || !m_config)
+        return;
+    auto *r = m_view->renderer();
+
+    const QString fam = m_config->value(QStringLiteral("appearance/fontFamily"),
+                                        QStringLiteral("DejaVu Sans Mono")).toString();
+    const int size = m_config->value(QStringLiteral("appearance/fontSize"), 14).toInt();
+    const QColor fg(m_config->value(QStringLiteral("appearance/foreground"),
+                                    QStringLiteral("#c0c0c0")).toString());
+    const QColor bg(m_config->value(QStringLiteral("appearance/background"),
+                                    QStringLiteral("#000000")).toString());
+    const QColor cur(m_config->value(QStringLiteral("appearance/cursorColor"),
+                                     QStringLiteral("#c0c0c0")).toString());
+    const int shape = m_config->value(QStringLiteral("appearance/cursorShape"), 0).toInt();
+
+    QFont f(fam);
+    f.setPixelSize(size);
+    r->setFont(f);
+    r->setDefaultForeground(fg);
+    r->setDefaultBackground(bg);
+    r->setCursorColor(cur);
+    r->setCursorShape(shape);
+}
+
+QStringList ZSApplication::fontFamilies() const
+{
+    QFontDatabase db;
+    const QStringList all = db.families();
+    QStringList mono;
+    for (const QString &fam : all)
+        if (db.isFixedPitch(fam))
+            mono.append(fam);
+    if (mono.isEmpty())
+        mono = all;
+    mono.sort();
+    return mono;
 }

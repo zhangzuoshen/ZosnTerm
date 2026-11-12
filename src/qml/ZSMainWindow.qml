@@ -139,9 +139,13 @@ Window {
                     text: "断开"
                     onClicked: ZSApplication.closeSerialSession()
                 }
+                ToolButton {
+                    text: "设置"
+                    onClicked: settingsDlg.show()
+                }
                 Item { Layout.fillWidth: true }
                 Label {
-                    text: "M4 会话管理 · PuTTY 0.85 终端仿真"
+                    text: "M5 外观/字体/主题设置 · PuTTY 0.85"
                     color: "#8a8f98"
                     font.pointSize: 10
                 }
@@ -228,5 +232,9 @@ Window {
                 font.pointSize: 10
             }
         }
+    }
+
+    ZSSettingsDlg {
+        id: settingsDlg
     }
 }

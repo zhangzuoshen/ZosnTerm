@@ -76,6 +76,7 @@ if(ZOSNTERM_BUILD_GUI)
         VERSION 1.0
         QML_FILES
             src/qml/ZSMainWindow.qml
+            src/qml/ZSSettingsDlg.qml
     )
 
     # 各业务子目录加入包含路径，使 #include "Xxx.h" 裸名可解析
