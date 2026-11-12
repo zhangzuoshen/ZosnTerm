@@ -81,10 +81,10 @@ bool ZSPuTTYBackendAdapter::open()
 
     m_termwin = zs_make_termwin(static_cast<void *>(m_view));
     m_term = zs_term_init(m_conf, m_ucs, m_termwin);
+    m_view->configureGrid(m_cols, m_rows);
     zs_term_size(m_term, m_rows, m_cols, 0);
     zs_term_pwron(m_term, 1);
     zs_term_set_trust(m_term, 0);
-    m_view->configureGrid(m_cols, m_rows);
 
     /* --- Serial port --- */
     if (!applySerialSettings()) {
@@ -153,4 +153,12 @@ void ZSPuTTYBackendAdapter::sendData(const QByteArray &data)
 {
     if (m_open && m_port.isOpen())
         m_port.write(data);
+}
+
+void ZSPuTTYBackendAdapter::resizeGrid(int cols, int rows)
+{
+    m_cols = qMax(1, cols);
+    m_rows = qMax(1, rows);
+    if (m_open && m_term)
+        zs_term_size(m_term, m_rows, m_cols, 0);
 }

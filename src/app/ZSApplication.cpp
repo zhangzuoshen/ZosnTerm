@@ -111,6 +111,7 @@ void ZSApplication::openWith(const QString &port, int baudRate, int dataBits,
 
     auto *adapter = new ZSPuTTYBackendAdapter(this);
     adapter->setView(m_view);
+    m_view->setBackend(adapter);
     adapter->setConnectionParameters(port, baudRate, dataBits, stopBits, parity, flow);
 
     connect(adapter, &ZSPuTTYBackendAdapter::statusMessage,

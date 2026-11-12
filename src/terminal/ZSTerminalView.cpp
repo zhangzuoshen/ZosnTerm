@@ -4,6 +4,7 @@
 
 #include <QPainter>
 #include <QKeyEvent>
+#include <QMouseEvent>
 #include <QGuiApplication>
 
 ZSTerminalView::ZSTerminalView(QQuickItem *parent)
@@ -47,17 +48,51 @@ void ZSTerminalView::setBackend(ZSPuTTYBackendAdapter *b)
     m_backend = b;
 }
 
-void ZSTerminalView::configureGrid(int cols, int rows)
+void ZSTerminalView::configureGrid(int /*cols*/, int /*rows*/)
 {
+    /* The real grid is derived from the item's pixel geometry so the terminal
+     * always matches the window size; see syncGridToGeometry(). */
+    syncGridToGeometry();
+}
+
+void ZSTerminalView::syncGridToGeometry()
+{
+    const qreal w = width();
+    const qreal h = height();
+    if (w <= 0 || h <= 0)
+        return;
+    const int cellW = m_renderer.cellWidth();
+    const int cellH = m_renderer.cellHeight();
+    if (cellW <= 0 || cellH <= 0)
+        return;
+    const int cols = qMax(1, static_cast<int>(w / cellW));
+    const int rows = qMax(1, static_cast<int>(h / cellH));
+    if (cols == m_renderer.cols() && rows == m_renderer.rows())
+        return;
     m_renderer.setGrid(cols, rows);
-    onRendererResized();
-    update();
+    if (m_backend)
+        m_backend->resizeGrid(cols, rows);
+}
+
+void ZSTerminalView::geometryChange(const QRectF &newGeometry,
+                                    const QRectF &oldGeometry)
+{
+    QQuickPaintedItem::geometryChange(newGeometry, oldGeometry);
+    Q_UNUSED(oldGeometry);
+    syncGridToGeometry();
 }
 
 void ZSTerminalView::focusInEvent(QFocusEvent *event)
 {
     QQuickPaintedItem::focusInEvent(event);
     setFocus(true);
+}
+
+void ZSTerminalView::mousePressEvent(QMouseEvent *event)
+{
+    QQuickPaintedItem::mousePressEvent(event);
+    forceActiveFocus();
+    event->accept();
 }
 
 QByteArray ZSTerminalView::keyToBytes(QKeyEvent *e) const

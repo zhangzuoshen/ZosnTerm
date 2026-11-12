@@ -40,6 +40,7 @@ public:
                                  int parity = ZS_PAR_NONE,
                                  int flow = ZS_FLOW_NONE);
     void setGrid(int cols, int rows) { m_cols = cols; m_rows = rows; }
+    void resizeGrid(int cols, int rows);
 
     /* Keyboard / output bytes to send to the serial port. */
     Q_INVOKABLE void sendData(const QByteArray &data);
