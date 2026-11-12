@@ -12,6 +12,9 @@ option(ZOSNTERM_BUILD_GUI "Build the Qt 6 / QML application (needs Qt 6.5+)" ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
+# Disable AUTOMOC predefs header: under Windows Esafenet DLP the generated
+# moc_predefs.h (.h) is transparently encrypted and crashes moc.exe (0xC0000006).
+set(CMAKE_CXX_COMPILER_PREDEFINES_COMMAND "")
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -37,6 +40,9 @@ if(ZOSNTERM_BUILD_GUI)
     find_package(Qt6 6.5 REQUIRED COMPONENTS
         Core Gui Quick Qml QuickControls2 SerialPort)
     qt_standard_project_setup()
+# Opt into Qt6 modern CMake policies to silence QTP0001 / QTP0004 dev warnings.
+qt_policy(SET QTP0001 NEW)
+qt_policy(SET QTP0004 NEW)
 
     # 可执行目标名为 ZosnTermApp，避免与 qt_add_qml_module 的 URI(ZosnTerm)
     # 在构建目录生成的 ZosnTerm/ 子目录撞名导致链接失败。
