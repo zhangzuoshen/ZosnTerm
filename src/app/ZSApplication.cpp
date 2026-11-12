@@ -12,6 +12,8 @@
 #include <QFont>
 #include <QFontDatabase>
 #include <QDebug>
+#include <QVariantMap>
+#include <QVariantList>
 
 ZSApplication::ZSApplication(QObject *parent)
     : QObject(parent)
@@ -25,11 +27,37 @@ QString ZSApplication::statusMessage() const
     return m_statusMessage;
 }
 
+bool ZSApplication::isConnected() const
+{
+    return m_connected;
+}
+
+QString ZSApplication::connectionSummary() const
+{
+    return m_connectionSummary;
+}
+
 void ZSApplication::setStatusMessage(const QString &msg)
 {
     if (m_statusMessage != msg) {
         m_statusMessage = msg;
         emit statusMessageChanged(m_statusMessage);
+    }
+}
+
+void ZSApplication::setConnected(bool c)
+{
+    if (m_connected != c) {
+        m_connected = c;
+        emit connectionStateChanged(m_connected);
+    }
+}
+
+void ZSApplication::setConnectionSummary(const QString &s)
+{
+    if (m_connectionSummary != s) {
+        m_connectionSummary = s;
+        emit connectionSummaryChanged(m_connectionSummary);
     }
 }
 
@@ -42,6 +70,17 @@ void ZSApplication::setTerminalView(ZSTerminalView *view)
 {
     m_view = view;
     applySettings();   // M5：视图就绪后套用已保存外观
+}
+
+QChar ZSApplication::parityChar(int parity)
+{
+    switch (parity) {
+    case 1: return QChar('O');
+    case 2: return QChar('E');
+    case 3: return QChar('M');
+    case 4: return QChar('S');
+    default: return QChar('N');
+    }
 }
 
 QStringList ZSApplication::availablePorts() const
@@ -86,13 +125,22 @@ void ZSApplication::openWith(const QString &port, int baudRate, int dataBits,
                 case ZSIConnection::State::Error:         txt = "错误";   break;
                 }
                 setStatusMessage(QStringLiteral("串口状态：%1").arg(QString::fromLatin1(txt)));
+                setConnected(s == ZSIConnection::State::Connected);
             });
+
+    // M6：连接摘要，供标签页 / 状态栏显示。
+    const QString summary = QStringLiteral("%1 · %2 %3%4%5")
+        .arg(port).arg(baudRate).arg(dataBits)
+        .arg(parityChar(parity))
+        .arg(stopBits == 3 ? QStringLiteral("1.5") : QString::number(stopBits));
+    setConnectionSummary(summary);
 
     m_adapter = adapter;
 
     if (!adapter->open()) {
         setStatusMessage(
             QStringLiteral("打开串口失败（检查设备 %1 与权限）").arg(port));
+        setConnectionSummary(QString());
     }
 }
 
@@ -129,6 +177,8 @@ void ZSApplication::closeSerialSession()
         m_adapter->deleteLater();
         m_adapter = nullptr;
     }
+    setConnected(false);
+    setConnectionSummary(QString());
 }
 
 /* ---------------- M4 会话管理 ---------------- */
@@ -136,6 +186,25 @@ void ZSApplication::closeSerialSession()
 QStringList ZSApplication::sessionNames() const
 {
     return m_repo->profileNames();
+}
+
+QVariantList ZSApplication::sessionList() const
+{
+    QVariantList out;
+    const QStringList names = m_repo->profileNames();
+    for (const QString &nm : names) {
+        ZSSerialProfile p = m_repo->loadProfile(nm);
+        QVariantMap m;
+        m.insert(QStringLiteral("name"), nm);
+        m.insert(QStringLiteral("port"), p.port);
+        m.insert(QStringLiteral("baudRate"), p.baudRate);
+        m.insert(QStringLiteral("dataBits"), p.dataBits);
+        m.insert(QStringLiteral("stopBits"), p.stopBits);
+        m.insert(QStringLiteral("parity"), p.parity);
+        m.insert(QStringLiteral("flow"), p.flow);
+        out.append(m);
+    }
+    return out;
 }
 
 void ZSApplication::saveSession(const QString &name, const QString &port,
@@ -175,6 +244,18 @@ void ZSApplication::deleteSession(const QString &name)
         setStatusMessage(QStringLiteral("已删除会话：%1").arg(name));
     else
         setStatusMessage(QStringLiteral("未找到会话：%1").arg(name));
+}
+
+void ZSApplication::openSession(const QString &name)
+{
+    ZSSerialProfile p = m_repo->loadProfile(name);
+    if (p.port.isEmpty()) {
+        setStatusMessage(QStringLiteral("未找到会话：%1").arg(name));
+        return;
+    }
+    // 更新上次配置并立即连接（MobaXTerm 双击会话的行为）。
+    m_repo->setLastProfile(p);
+    openWith(p.port, p.baudRate, p.dataBits, p.stopBits, p.parity, p.flow);
 }
 
 QVariantMap ZSApplication::lastParams() const

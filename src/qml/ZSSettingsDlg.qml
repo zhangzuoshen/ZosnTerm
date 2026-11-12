@@ -9,7 +9,7 @@ Window {
     width: 460
     height: 540
     modality: Qt.ApplicationModal
-    color: "#1c1e22"
+    color: "#eef1f5"
 
     // 默认值（与 ZSApplication::applySettings 的 fallback 保持一致）
     readonly property string defFont: "DejaVu Sans Mono"
@@ -61,53 +61,61 @@ Window {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 14
+        anchors.margins: 16
         spacing: 12
 
-        Label { text: "字体"; color: "#c8ccd2"; font.bold: true }
+        Label { text: "字体"; color: "#2b2f36"; font.bold: true; font.pointSize: 12 }
 
         RowLayout {
-            Label { text: "字族"; color: "#8a8f98"; Layout.preferredWidth: 70 }
+            Label { text: "字族"; color: "#6b7280"; Layout.preferredWidth: 70 }
             ComboBox {
                 id: fontCombo
                 Layout.fillWidth: true
                 model: ZSApplication.fontFamilies()
+                background: Rectangle { color: "#ffffff"; border.color: "#d0d7e0"; radius: 4 }
             }
         }
         RowLayout {
-            Label { text: "字号(px)"; color: "#8a8f98"; Layout.preferredWidth: 70 }
-            SpinBox { id: sizeSpin; from: 8; to: 40; value: defSize }
+            Label { text: "字号(px)"; color: "#6b7280"; Layout.preferredWidth: 70 }
+            SpinBox {
+                id: sizeSpin
+                from: 8; to: 40; value: defSize
+                background: Rectangle { color: "#ffffff"; border.color: "#d0d7e0"; radius: 4 }
+            }
         }
 
-        Label { text: "配色"; color: "#c8ccd2"; font.bold: true; Layout.topMargin: 8 }
+        Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: "#d0d7e0"; Layout.topMargin: 6 }
+
+        Label { text: "配色"; color: "#2b2f36"; font.bold: true; font.pointSize: 12 }
 
         RowLayout {
-            Label { text: "方案"; color: "#8a8f98"; Layout.preferredWidth: 70 }
+            Label { text: "方案"; color: "#6b7280"; Layout.preferredWidth: 70 }
             ComboBox {
                 id: schemeCombo
                 Layout.preferredWidth: 140
                 model: ["深色", "浅色"]
+                background: Rectangle { color: "#ffffff"; border.color: "#d0d7e0"; radius: 4 }
                 onCurrentIndexChanged: if (!loading) applyScheme(currentIndex)
             }
         }
         RowLayout {
-            Label { text: "前景"; color: "#8a8f98"; Layout.preferredWidth: 70 }
-            TextField { id: fgText; Layout.fillWidth: true; placeholderText: "#c0c0c0" }
-            Rectangle { width: 22; height: 22; color: fgText.text; border.color: "#444" }
+            Label { text: "前景"; color: "#6b7280"; Layout.preferredWidth: 70 }
+            TextField { id: fgText; Layout.fillWidth: true; placeholderText: "#c0c0c0"; background: Rectangle { color: "#ffffff"; border.color: "#d0d7e0"; radius: 4 } }
+            Rectangle { width: 22; height: 22; color: fgText.text; border.color: "#aaa" }
         }
         RowLayout {
-            Label { text: "背景"; color: "#8a8f98"; Layout.preferredWidth: 70 }
-            TextField { id: bgText; Layout.fillWidth: true; placeholderText: "#000000" }
-            Rectangle { width: 22; height: 22; color: bgText.text; border.color: "#444" }
+            Label { text: "背景"; color: "#6b7280"; Layout.preferredWidth: 70 }
+            TextField { id: bgText; Layout.fillWidth: true; placeholderText: "#000000"; background: Rectangle { color: "#ffffff"; border.color: "#d0d7e0"; radius: 4 } }
+            Rectangle { width: 22; height: 22; color: bgText.text; border.color: "#aaa" }
         }
         RowLayout {
-            Label { text: "光标"; color: "#8a8f98"; Layout.preferredWidth: 70 }
-            TextField { id: curText; Layout.fillWidth: true; placeholderText: "#c0c0c0" }
-            Rectangle { width: 22; height: 22; color: curText.text; border.color: "#444" }
+            Label { text: "光标"; color: "#6b7280"; Layout.preferredWidth: 70 }
+            TextField { id: curText; Layout.fillWidth: true; placeholderText: "#c0c0c0"; background: Rectangle { color: "#ffffff"; border.color: "#d0d7e0"; radius: 4 } }
+            Rectangle { width: 22; height: 22; color: curText.text; border.color: "#aaa" }
         }
         RowLayout {
-            Label { text: "光标形状"; color: "#8a8f98"; Layout.preferredWidth: 70 }
-            ComboBox { id: shapeCombo; Layout.preferredWidth: 140; model: ["块状", "下划线", "竖条"] }
+            Label { text: "光标形状"; color: "#6b7280"; Layout.preferredWidth: 70 }
+            ComboBox { id: shapeCombo; Layout.preferredWidth: 140; model: ["块状", "下划线", "竖条"]; background: Rectangle { color: "#ffffff"; border.color: "#d0d7e0"; radius: 4 } }
         }
 
         Item { Layout.fillHeight: true }
@@ -117,10 +125,23 @@ Window {
             spacing: 10
             Button {
                 text: "应用"
+                implicitWidth: 90
+                background: Rectangle {
+                    color: parent.hovered ? "#1f4f86" : "#2b6cb0"
+                    radius: 4
+                }
+                contentItem: Label { text: "应用"; color: "#ffffff"; horizontalAlignment: Text.AlignHCenter }
                 onClicked: { applyAll(); dlg.close() }
             }
             Button {
                 text: "取消"
+                implicitWidth: 90
+                background: Rectangle {
+                    color: parent.hovered ? "#d3dbe6" : "#e3e8ee"
+                    border.color: "#d0d7e0"
+                    radius: 4
+                }
+                contentItem: Label { text: "取消"; color: "#2b2f36"; horizontalAlignment: Text.AlignHCenter }
                 onClicked: dlg.close()
             }
         }
