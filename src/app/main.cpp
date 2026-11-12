@@ -1,6 +1,7 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QQuickStyle>
 
 #include "ZSApplication.h"
 #include "ZSTerminalView.h"
@@ -11,6 +12,10 @@ int main(int argc, char *argv[])
     QGuiApplication app(argc, argv);
     QGuiApplication::setApplicationName(QStringLiteral("ZosnTerm"));
     QGuiApplication::setApplicationVersion(QStringLiteral("0.1.0"));
+
+    // M6：强制 Fusion 风格，确保自定义按钮/下拉背景（MobaXTerm 钢蓝调）生效，
+    // 否则 Windows 原生风格会忽略 background 自定义导致控件回退为系统默认外观。
+    QQuickStyle::setStyle(QStringLiteral("Fusion"));
 
     ZSApplication zsApp;
     ZSConfigStore configStore;          // M5：全局设置（构造即加载 config.json）
