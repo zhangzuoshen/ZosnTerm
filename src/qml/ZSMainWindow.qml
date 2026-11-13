@@ -27,7 +27,7 @@ Window {
     property var sessionModel: []
 
     // 把一组串口参数回填到各 ComboBox。
-    function applyParams(port, baud, data, stop, parity, flow) {
+    function applyParams(port, baud, data, stop, parity, flow, codepage) {
         if (portCombo.find(port) >= 0) portCombo.currentIndex = portCombo.find(port);
         else portCombo.editText = port;
         baudCombo.currentIndex = baudCombo.indexOfValue(baud);
@@ -35,22 +35,24 @@ Window {
         stopCombo.currentIndex = stopCombo.indexOfValue(stop);
         parityCombo.currentIndex = parityCombo.indexOfValue(parity);
         flowCombo.currentIndex = flowCombo.indexOfValue(flow);
+        encCombo.currentIndex = encCombo.indexOfValue((codepage && codepage !== "") ? codepage : ZSApplication.defaultEncoding());
     }
     function refreshSessions() { sessionModel = ZSApplication.sessionList(); }
 
     Component.onCompleted: {
         portCombo.model = ZSApplication.availablePorts();
+        encCombo.currentIndex = encCombo.indexOfValue(ZSApplication.defaultEncoding());
         refreshSessions();
         var last = ZSApplication.lastParams();
         if (last.port !== undefined && last.port !== "")
             applyParams(last.port, last.baudRate, last.dataBits,
-                        last.stopBits, last.parity, last.flow);
+                        last.stopBits, last.parity, last.flow, last.codepage);
     }
 
     Connections {
         target: ZSApplication
-        function onConnectionParamsApplied(port, baud, data, stop, parity, flow) {
-            applyParams(port, baud, data, stop, parity, flow);
+        function onConnectionParamsApplied(port, baud, data, stop, parity, flow, codepage) {
+            applyParams(port, baud, data, stop, parity, flow, codepage);
         }
         function onConnectionStateChanged(c) { /* 各控件通过属性绑定响应 */ }
     }
@@ -314,6 +316,13 @@ Window {
                         ]
                         currentIndex: 0
                     }
+                    ComboBox {
+                        id: encCombo
+                        implicitWidth: 104
+                        textRole: "label"
+                        valueRole: "cp"
+                        model: ZSApplication.availableEncodings()
+                    }
 
                     Item { Layout.fillWidth: true }
 
@@ -338,7 +347,8 @@ Window {
                             dataCombo.currentValue,
                             stopCombo.currentValue,
                             parityCombo.currentValue,
-                            flowCombo.currentValue)
+                            flowCombo.currentValue,
+                            encCombo.currentValue)
                     }
                     Button {
                         id: disconnectBtn

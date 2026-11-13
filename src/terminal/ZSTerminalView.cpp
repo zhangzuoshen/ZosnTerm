@@ -5,8 +5,11 @@
 #include <QPainter>
 #include <QKeyEvent>
 #include <QMouseEvent>
+#include <QWheelEvent>
 #include <QGuiApplication>
 #include <QtMath>
+
+static const qreal kScrollbarWidth = 12.0;
 
 ZSTerminalView::ZSTerminalView(QQuickItem *parent)
     : QQuickPaintedItem(parent)
@@ -53,6 +56,7 @@ void ZSTerminalView::paint(QPainter *painter)
         return;
     }
     painter->drawImage(QPoint(0, 0), img);
+    drawScrollbar(painter);
 }
 
 void ZSTerminalView::setBackend(ZSPuTTYBackendAdapter *b)
@@ -109,8 +113,113 @@ void ZSTerminalView::focusInEvent(QFocusEvent *event)
 void ZSTerminalView::mousePressEvent(QMouseEvent *event)
 {
     QQuickPaintedItem::mousePressEvent(event);
+    if (isInScrollbar(event->position())) {
+        m_scrolling = true;
+        scrollTo(scrollTopFromPos(event->position().y()));
+        event->accept();
+        return;
+    }
     forceActiveFocus();
     event->accept();
+}
+
+void ZSTerminalView::mouseMoveEvent(QMouseEvent *event)
+{
+    if (m_scrolling) {
+        scrollTo(scrollTopFromPos(event->position().y()));
+        event->accept();
+        return;
+    }
+    QQuickPaintedItem::mouseMoveEvent(event);
+}
+
+void ZSTerminalView::mouseReleaseEvent(QMouseEvent *event)
+{
+    m_scrolling = false;
+    QQuickPaintedItem::mouseReleaseEvent(event);
+}
+
+void ZSTerminalView::wheelEvent(QWheelEvent *event)
+{
+    if (m_scrollTotal > m_scrollPage && m_scrollPage > 0) {
+        const int lines = 3;                       // 每次滚动 3 行
+        const int dir = (event->angleDelta().y() > 0) ? -1 : 1;  // 上滚=看更旧历史
+        scrollTo(m_scrollTop + dir * lines);
+        event->accept();
+        return;
+    }
+    QQuickPaintedItem::wheelEvent(event);
+}
+
+void ZSTerminalView::setScrollbarInfo(int total, int top, int page)
+{
+    m_scrollTotal = total;
+    m_scrollTop = top;
+    m_scrollPage = page;
+    update();
+}
+
+bool ZSTerminalView::isInScrollbar(const QPointF &p) const
+{
+    return p.x() >= width() - kScrollbarWidth && p.x() <= width();
+}
+
+qreal ZSTerminalView::scrollbarTrackHeight() const
+{
+    return height();
+}
+
+qreal ZSTerminalView::scrollbarThumbHeight() const
+{
+    if (m_scrollTotal <= 0 || m_scrollPage <= 0)
+        return 0;
+    const qreal h = scrollbarTrackHeight();
+    qreal thumb = h * (qreal)m_scrollPage / (qreal)m_scrollTotal;
+    return qMax(thumb, 24.0);
+}
+
+int ZSTerminalView::scrollTopFromPos(qreal y) const
+{
+    const qreal h = scrollbarTrackHeight();
+    const qreal thumb = scrollbarThumbHeight();
+    const qreal maxScroll = qMax(0, m_scrollTotal - m_scrollPage);
+    if (maxScroll <= 0)
+        return 0;
+    qreal f = (y - thumb / 2.0) / (h - thumb);
+    f = qBound(0.0, f, 1.0);
+    return qRound(f * maxScroll);
+}
+
+void ZSTerminalView::scrollTo(int top)
+{
+    const int maxScroll = qMax(0, m_scrollTotal - m_scrollPage);
+    top = qBound(0, top, maxScroll);
+    if (top == m_scrollTop)
+        return;
+    m_scrollTop = top;
+    if (m_backend)
+        m_backend->scrollTo(m_scrollTop, m_scrollTotal, m_scrollPage);
+    update();
+}
+
+void ZSTerminalView::drawScrollbar(QPainter *painter)
+{
+    if (m_scrollTotal <= m_scrollPage || m_scrollPage <= 0)
+        return;
+    const qreal w = width();
+    const qreal h = height();
+    const qreal x = w - kScrollbarWidth;
+
+    /* Track */
+    painter->fillRect(QRectF(x, 0, kScrollbarWidth, h), QColor(40, 40, 40, 180));
+
+    const qreal thumb = scrollbarThumbHeight();
+    const qreal maxScroll = qMax(0, m_scrollTotal - m_scrollPage);
+    const qreal f = (maxScroll > 0) ? (qreal)m_scrollTop / (qreal)maxScroll : 0.0;
+    const qreal y = f * (h - thumb);
+
+    painter->fillRect(QRectF(x + 2, y, kScrollbarWidth - 4, thumb),
+                      QColor(150, 150, 150, 220));
 }
 
 QByteArray ZSTerminalView::keyToBytes(QKeyEvent *e) const
@@ -212,6 +321,12 @@ extern "C" void zs_view_bell(void *host, int mode)
 {
     (void)host; (void)mode;
     /* M2: no audio bell. */
+}
+
+extern "C" void zs_view_set_scrollbar(void *host, int total, int top, int page)
+{
+    auto *v = static_cast<ZSTerminalView *>(host);
+    if (v) v->setScrollbarInfo(total, top, page);
 }
 
 ZSPuTTYBackendAdapter *ZSTerminalView::backend() const

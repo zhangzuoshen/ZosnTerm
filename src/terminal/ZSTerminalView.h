@@ -14,7 +14,10 @@ class ZSPuTTYBackendAdapter; /* forward decl; includes kept out of the header */
  * terminal (after interacting with the toolbar/comboboxes, focus returns here).
  * Resize: recomputes the terminal grid (cols/rows) from the item's pixel
  * geometry whenever the window is resized, so the terminal fills the area and
- * reflows like MobaXterm. */
+ * reflows like MobaXterm.
+ * Scroll: PuTTY keeps a scrollback buffer; we expose it through an on-screen
+ * scrollbar (wheel to scroll back, drag the thumb to seek) driven by the
+ * zs_view_set_scrollbar callback. */
 class ZSTerminalView : public QQuickPaintedItem
 {
     Q_OBJECT
@@ -34,11 +37,20 @@ public:
      * terminal always matches the window size. */
     Q_INVOKABLE void configureGrid(int cols, int rows);
 
+    /* Called by the PuTTY glue (zs_view_set_scrollbar) on every repaint to
+     * report the scrollback range/position so we can draw + drive a scrollbar.
+     * total = scrollback+visible lines; top = current top (0 = oldest
+     * scrollback, total-page = newest); page = visible rows. */
+    void setScrollbarInfo(int total, int top, int page);
+
 protected:
     void keyPressEvent(QKeyEvent *event) override;
     void keyReleaseEvent(QKeyEvent *event) override;
     void focusInEvent(QFocusEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
+    void wheelEvent(QWheelEvent *event) override;
     void geometryChange(const QRectF &newGeometry,
                         const QRectF &oldGeometry) override;
 
@@ -50,9 +62,22 @@ private:
     /* Recompute cols/rows from the item's current pixel size and resize both
      * the renderer image and the PuTTY terminal. No-op if unchanged. */
     void syncGridToGeometry();
-
     QByteArray keyToBytes(QKeyEvent *event) const;
+
+    /* Scrollbar geometry (track is a thin strip on the right edge). */
+    bool isInScrollbar(const QPointF &p) const;
+    qreal scrollbarTrackHeight() const;
+    qreal scrollbarThumbHeight() const;
+    int   scrollTopFromPos(qreal y) const;
+    void  scrollTo(int top);
+    void  drawScrollbar(QPainter *painter);
 
     ZSTerminalRenderer m_renderer;
     QPointer<ZSPuTTYBackendAdapter> m_backend;
+
+    /* Scrollback state reported by PuTTY. */
+    int  m_scrollTotal = 0;   // total lines (scrollback + visible)
+    int  m_scrollTop  = 0;    // current top (0 = oldest, total-page = newest)
+    int  m_scrollPage = 0;    // visible rows
+    bool m_scrolling = false;  // user is dragging the scrollbar thumb
 };

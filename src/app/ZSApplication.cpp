@@ -14,6 +14,9 @@
 #include <QDebug>
 #include <QVariantMap>
 #include <QVariantList>
+#include <QLocale>
+#include <QVector>
+#include <QPair>
 
 ZSApplication::ZSApplication(QObject *parent)
     : QObject(parent)
@@ -100,7 +103,8 @@ QStringList ZSApplication::availablePorts() const
 }
 
 void ZSApplication::openWith(const QString &port, int baudRate, int dataBits,
-                            int stopBits, int parity, int flow)
+                            int stopBits, int parity, int flow,
+                            const QString &codepage)
 {
     if (!m_view) {
         setStatusMessage(QStringLiteral("未找到终端视图 (ZSTerminalView)"));
@@ -113,6 +117,7 @@ void ZSApplication::openWith(const QString &port, int baudRate, int dataBits,
     adapter->setView(m_view);
     m_view->setBackend(adapter);
     adapter->setConnectionParameters(port, baudRate, dataBits, stopBits, parity, flow);
+    adapter->setCodepage(codepage.isEmpty() ? defaultEncoding() : codepage);
 
     connect(adapter, &ZSPuTTYBackendAdapter::statusMessage,
             this, &ZSApplication::setStatusMessage);
@@ -146,7 +151,8 @@ void ZSApplication::openWith(const QString &port, int baudRate, int dataBits,
 }
 
 void ZSApplication::connectSerial(const QString &port, int baudRate, int dataBits,
-                                 int stopBits, int parity, int flow)
+                                 int stopBits, int parity, int flow,
+                                 const QString &codepage)
 {
     // M4：记住本次使用的配置，供下次启动自动恢复。
     ZSSerialProfile last;
@@ -156,9 +162,10 @@ void ZSApplication::connectSerial(const QString &port, int baudRate, int dataBit
     last.stopBits = stopBits;
     last.parity = parity;
     last.flow = flow;
+    last.codepage = codepage;
     m_repo->setLastProfile(last);
 
-    openWith(port, baudRate, dataBits, stopBits, parity, flow);
+    openWith(port, baudRate, dataBits, stopBits, parity, flow, codepage);
 }
 
 void ZSApplication::newSerialSession()
@@ -210,7 +217,7 @@ QVariantList ZSApplication::sessionList() const
 
 void ZSApplication::saveSession(const QString &name, const QString &port,
                                int baudRate, int dataBits, int stopBits,
-                               int parity, int flow)
+                               int parity, int flow, const QString &codepage)
 {
     QString nm = name.trimmed();
     if (nm.isEmpty()) {
@@ -224,6 +231,7 @@ void ZSApplication::saveSession(const QString &name, const QString &port,
     p.stopBits = stopBits;
     p.parity = parity;
     p.flow = flow;
+    p.codepage = codepage;
     m_repo->saveProfile(nm, p);
     setStatusMessage(QStringLiteral("已保存会话：%1").arg(nm));
 }
@@ -236,7 +244,7 @@ void ZSApplication::loadSession(const QString &name)
         return;
     }
     emit connectionParamsApplied(p.port, p.baudRate, p.dataBits,
-                                 p.stopBits, p.parity, p.flow);
+                                 p.stopBits, p.parity, p.flow, p.codepage);
 }
 
 void ZSApplication::deleteSession(const QString &name)
@@ -256,7 +264,8 @@ void ZSApplication::openSession(const QString &name)
     }
     // 更新上次配置并立即连接（MobaXTerm 双击会话的行为）。
     m_repo->setLastProfile(p);
-    openWith(p.port, p.baudRate, p.dataBits, p.stopBits, p.parity, p.flow);
+    openWith(p.port, p.baudRate, p.dataBits, p.stopBits, p.parity, p.flow,
+            p.codepage.isEmpty() ? defaultEncoding() : p.codepage);
 }
 
 QVariantMap ZSApplication::lastParams() const
@@ -269,6 +278,7 @@ QVariantMap ZSApplication::lastParams() const
     m.insert(QStringLiteral("stopBits"), p.stopBits);
     m.insert(QStringLiteral("parity"), p.parity);
     m.insert(QStringLiteral("flow"), p.flow);
+    m.insert(QStringLiteral("codepage"), p.codepage);
     return m;
 }
 
@@ -312,4 +322,29 @@ QStringList ZSApplication::fontFamilies() const
         mono = all;
     mono.sort();
     return mono;
+}
+
+QVariantList ZSApplication::availableEncodings() const
+{
+    static const QVector<QPair<QString, QString>> list = {
+        {QStringLiteral("UTF-8"),          QStringLiteral("UTF-8")},
+        {QStringLiteral("GBK (中文)"),      QStringLiteral("GBK")},
+        {QStringLiteral("GB2312"),         QStringLiteral("GB2312")},
+        {QStringLiteral("Latin-1"),       QStringLiteral("ISO-8859-1")},
+        {QStringLiteral("CP1252 (西欧)"),  QStringLiteral("CP1252")}
+    };
+    QVariantList out;
+    for (const auto &e : list) {
+        QVariantMap m;
+        m.insert(QStringLiteral("label"), e.first);
+        m.insert(QStringLiteral("cp"), e.second);
+        out.append(m);
+    }
+    return out;
+}
+
+QString ZSApplication::defaultEncoding() const
+{
+    return (QLocale::system().language() == QLocale::Chinese)
+               ? QStringLiteral("GBK") : QStringLiteral("UTF-8");
 }

@@ -41,6 +41,8 @@ public:
                                  int flow = ZS_FLOW_NONE);
     void setGrid(int cols, int rows) { m_cols = cols; m_rows = rows; }
     void resizeGrid(int cols, int rows);
+    void setCodepage(const QString &cp) { m_codepage = cp; }
+    void scrollTo(int top, int total, int page);
 
     /* Keyboard / output bytes to send to the serial port. */
     Q_INVOKABLE void sendData(const QByteArray &data);
@@ -58,6 +60,7 @@ private:
     ZSConf      m_conf = nullptr;
     ZSUCS       m_ucs = nullptr;
     ZSTerminal  m_term = nullptr;
+    QString     m_codepage = QStringLiteral("UTF-8");
     ZSTermWin   m_termwin = nullptr;
 
     QSerialPort  m_port;

@@ -44,7 +44,8 @@ public:
     /* 按给定参数建立串口会话。parity/flow 用 ZS_PAR_* / ZS_FLOW_* 数值。 */
     Q_INVOKABLE void connectSerial(const QString &port, int baudRate,
                                    int dataBits, int stopBits,
-                                   int parity, int flow);
+                                   int parity, int flow,
+                                   const QString &codepage = QStringLiteral("UTF-8"));
 
     /* 无参快捷连接（阶段一默认参数）；保留以兼容旧入口。 */
     Q_INVOKABLE void newSerialSession();
@@ -56,7 +57,8 @@ public:
     Q_INVOKABLE QVariantList sessionList() const;
     Q_INVOKABLE void saveSession(const QString &name, const QString &port,
                                  int baudRate, int dataBits, int stopBits,
-                                 int parity, int flow);
+                                 int parity, int flow,
+                                 const QString &codepage = QStringLiteral("UTF-8"));
     Q_INVOKABLE void loadSession(const QString &name);
     Q_INVOKABLE void deleteSession(const QString &name);
     /* M6：加载命名会话参数并立即连接（MobaXTerm 双击会话的行为）。 */
@@ -68,12 +70,17 @@ public:
     Q_INVOKABLE void applySettings();
     /* 等宽字体族列表，供设置面板下拉填充。 */
     Q_INVOKABLE QStringList fontFamilies() const;
+    /* 可选编码（串口数据解码字符集），供工具栏下拉。 */
+    Q_INVOKABLE QVariantList availableEncodings() const;
+    /* 依据系统区域默认编码：中文系统 GBK，其余 UTF-8。 */
+    Q_INVOKABLE QString defaultEncoding() const;
 
 signals:
     void statusMessageChanged(const QString &msg);
     /* 加载会话/恢复配置后，UI 据此把参数回填到各 ComboBox。 */
     void connectionParamsApplied(const QString &port, int baudRate, int dataBits,
-                                 int stopBits, int parity, int flow);
+                                 int stopBits, int parity, int flow,
+                                 const QString &codepage);
     /* M6：连接状态变化。 */
     void connectionStateChanged(bool connected);
     /* M6：当前连接摘要（如 "COM1 · 9600 8N1"）变化。 */
@@ -81,7 +88,8 @@ signals:
 
 private:
     void openWith(const QString &port, int baudRate, int dataBits,
-                  int stopBits, int parity, int flow);
+                  int stopBits, int parity, int flow,
+                  const QString &codepage = QStringLiteral("UTF-8"));
     void setStatusMessage(const QString &msg);
     void setConnected(bool c);
     void setConnectionSummary(const QString &s);

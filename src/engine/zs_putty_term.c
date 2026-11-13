@@ -13,6 +13,12 @@
 #include <stddef.h>
 #include <wchar.h>
 
+/* Scrollback lines retained for the on-screen scrollbar. */
+#define ZS_SAVELINES 2000
+
+/* Scrollback lines retained for the on-screen scrollbar. */
+#define ZS_SAVELINES 2000
+
 /* Our TermWin wrapper. TermWin must be the first member so we can recover the
  * host pointer via offsetof(container_of). */
 struct ZSTermWin {
@@ -71,7 +77,11 @@ static int zs_tw_char_width(TermWin *win, int uc)
 static void zs_tw_set_cursor_pos(TermWin *win, int x, int y) { (void)win;(void)x;(void)y; }
 static void zs_tw_set_raw_mouse_mode(TermWin *win, bool e) { (void)win;(void)e; }
 static void zs_tw_set_raw_mouse_mode_pointer(TermWin *win, bool e) { (void)win;(void)e; }
-static void zs_tw_set_scrollbar(TermWin *win, int t, int s, int p) { (void)win;(void)t;(void)s;(void)p; }
+static void zs_tw_set_scrollbar(TermWin *win, int t, int s, int p)
+{
+    struct ZSTermWin *z = ZS_CONTAINER_OF(win, struct ZSTermWin, base);
+    zs_view_set_scrollbar(z->host, t, s, p);
+}
 
 static void zs_tw_bell(TermWin *win, int mode)
 {
@@ -174,7 +184,7 @@ void zs_do_defaults(ZSConf conf) { do_defaults(NULL, (Conf *)conf); }
 
 void zs_configure_serial(ZSConf conf, const char *serial_line, int speed,
                          int databits, int stopbits, int parity, int flow,
-                         const char *termtype)
+                         const char *termtype, const char *codepage)
 {
     Conf *c = (Conf *)conf;
     conf_set_str(c, CONF_serline, serial_line ? serial_line : "");
@@ -184,7 +194,8 @@ void zs_configure_serial(ZSConf conf, const char *serial_line, int speed,
     conf_set_int(c, CONF_serparity, parity);
     conf_set_int(c, CONF_serflow, flow);
     conf_set_str(c, CONF_termtype, termtype ? termtype : "xterm");
-    conf_set_str(c, CONF_line_codepage, "UTF-8");
+    conf_set_str(c, CONF_line_codepage,
+                 (codepage && *codepage) ? codepage : "UTF-8");
     conf_set_int(c, CONF_width, 80);
     conf_set_int(c, CONF_height, 24);
 }
@@ -216,7 +227,7 @@ ZSTerminal zs_term_init(ZSConf conf, ZSUCS ucs, ZSTermWin termwin)
     int cols = conf_get_int((Conf *)conf, CONF_width);
     if (rows < 1) rows = 24;
     if (cols < 1) cols = 80;
-    term_size(t, rows, cols, 0);
+    term_size(t, rows, cols, ZS_SAVELINES);
 
     return (ZSTerminal)t;
 }
@@ -224,7 +235,8 @@ void zs_term_free(ZSTerminal term) { term_free((Terminal *)term); }
 
 void zs_term_size(ZSTerminal term, int rows, int cols, int savelines)
 {
-    term_size((Terminal *)term, rows, cols, savelines);
+    (void)savelines;
+    term_size((Terminal *)term, rows, cols, ZS_SAVELINES);
 }
 
 void zs_term_data(ZSTerminal term, const void *data, unsigned long len)
@@ -245,6 +257,13 @@ void zs_tick(ZSTerminal term)
     run_timers(getticks(), &next);
     run_toplevel_callbacks();
     term_update((Terminal *)term);
+}
+
+void zs_term_scroll_to(ZSTerminal term, int top, int total, int page)
+{
+    int nscroll = total - page;
+    int disptop = top - nscroll;
+    term_scroll((Terminal *)term, -1, disptop);
 }
 
 ZSTermWin zs_make_termwin(void *host)

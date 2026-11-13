@@ -32,6 +32,9 @@ void zs_view_palette_set(void *host, unsigned start, unsigned n,
 
 void zs_view_bell(void *host, int mode);
 
+/* Scrollbar state: total lines, current top (0=oldest, total-page=newest), visible page. */
+void zs_view_set_scrollbar(void *host, int total, int top, int page);
+
 #ifdef __cplusplus
 }
 #endif

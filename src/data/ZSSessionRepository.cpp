@@ -79,6 +79,7 @@ ZSSerialProfile ZSSessionRepository::profileFromObject(const QJsonObject &obj) c
     p.stopBits = obj.value(QStringLiteral("stopBits")).toInt(1);
     p.parity = obj.value(QStringLiteral("parity")).toInt(0);
     p.flow = obj.value(QStringLiteral("flow")).toInt(0);
+    p.codepage = obj.value(QStringLiteral("codepage")).toString();
     return p;
 }
 
@@ -91,6 +92,7 @@ QJsonObject ZSSessionRepository::objectFromProfile(const ZSSerialProfile &p) con
     obj.insert(QStringLiteral("stopBits"), p.stopBits);
     obj.insert(QStringLiteral("parity"), p.parity);
     obj.insert(QStringLiteral("flow"), p.flow);
+    obj.insert(QStringLiteral("codepage"), p.codepage);
     return obj;
 }
 

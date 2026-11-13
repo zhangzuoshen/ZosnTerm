@@ -58,6 +58,8 @@ extern "C" void zs_view_request_resize(void *host, int w, int h) { (void)host; (
 extern "C" void zs_view_palette_set(void *host, unsigned s, unsigned n, const unsigned char *c)
 { (void)host; (void)s; (void)n; (void)c; }
 extern "C" void zs_view_bell(void *host, int m)    { (void)host; (void)m; }
+extern "C" void zs_view_set_scrollbar(void *host, int total, int top, int page)
+{ (void)host; (void)total; (void)top; (void)page; }
 
 static void pump(ZSTerminal term)
 {
@@ -70,7 +72,7 @@ int main()
     ZSConf conf = zs_conf_new();
     zs_do_defaults(conf);
     zs_configure_serial(conf, "/dev/null", 9600, 8, 1, ZS_PAR_NONE,
-                        ZS_FLOW_NONE, "xterm");
+                        ZS_FLOW_NONE, "xterm", "UTF-8");
     ZSUCS ucs = zs_ucs_new();
     zs_init_ucs(conf, ucs);
     ZSTermWin tw = zs_make_termwin(nullptr);

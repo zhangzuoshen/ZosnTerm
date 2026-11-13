@@ -75,7 +75,8 @@ bool ZSPuTTYBackendAdapter::open()
     m_conf = zs_conf_new();
     zs_do_defaults(m_conf);
     zs_configure_serial(m_conf, m_portName.toUtf8().constData(), m_baudRate,
-                        m_dataBits, m_stopBits, m_parity, m_flow, "xterm");
+                        m_dataBits, m_stopBits, m_parity, m_flow, "xterm",
+                        m_codepage.toUtf8().constData());
     m_ucs = zs_ucs_new();
     zs_init_ucs(m_conf, m_ucs);
 
@@ -153,6 +154,16 @@ void ZSPuTTYBackendAdapter::sendData(const QByteArray &data)
 {
     if (m_open && m_port.isOpen())
         m_port.write(data);
+}
+
+void ZSPuTTYBackendAdapter::scrollTo(int top, int total, int page)
+{
+    if (!m_open || !m_term)
+        return;
+    zs_term_scroll_to(m_term, top, total, page);
+    zs_tick(m_term);
+    if (m_view)
+        m_view->update();
 }
 
 void ZSPuTTYBackendAdapter::resizeGrid(int cols, int rows)

@@ -35,7 +35,8 @@ void        zs_do_defaults(ZSConf conf);
 void        zs_configure_serial(ZSConf conf,
                                 const char *serial_line, int speed,
                                 int databits, int stopbits, int parity,
-                                int flow, const char *termtype);
+                                int flow, const char *termtype,
+                                 const char *codepage);
 ZSUCS       zs_ucs_new(void);
 void        zs_ucs_free(ZSUCS ucs);
 void        zs_init_ucs(ZSConf conf, ZSUCS ucs);
@@ -51,6 +52,8 @@ void        zs_term_set_trust(ZSTerminal term, int trusted);
 
 /* Drive timers + toplevel callbacks + paint. Call from a Qt timer tick. */
 void        zs_tick(ZSTerminal term);
+void        zs_term_scroll_to(ZSTerminal term, int top, int total, int page);
+void        zs_term_scroll_to(ZSTerminal term, int top, int total, int page);
 
 /* TermWin (front-end drawing surface) bound to a host object (the view). */
 ZSTermWin   zs_make_termwin(void *host);

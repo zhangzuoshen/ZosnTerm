@@ -16,6 +16,7 @@ struct ZSSerialProfile
     int stopBits = 1;
     int parity = 0;
     int flow = 0;
+    QString codepage = "UTF-8";
 };
 
 // 会话持久化仓库（M4 落地：JSON 文件存储于 ZSPlatformPaths::sessionStorePath()）。
