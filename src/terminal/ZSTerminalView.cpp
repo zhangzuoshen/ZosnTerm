@@ -6,6 +6,7 @@
 #include <QKeyEvent>
 #include <QMouseEvent>
 #include <QGuiApplication>
+#include <QtMath>
 
 ZSTerminalView::ZSTerminalView(QQuickItem *parent)
     : QQuickPaintedItem(parent)
@@ -16,15 +17,20 @@ ZSTerminalView::ZSTerminalView(QQuickItem *parent)
     setFocus(true);
     connect(&m_renderer, &ZSTerminalRenderer::resized, this, &ZSTerminalView::onRendererResized);
     connect(&m_renderer, &ZSTerminalRenderer::contentChanged, this, &ZSTerminalView::onContentChanged);
-    onRendererResized();
+
+    /* Seed the grid from whatever size we have right now; geometryChange() and
+     * paint() will keep it in sync with the window thereafter. */
+    syncGridToGeometry();
 }
 
 ZSTerminalView::~ZSTerminalView() = default;
 
 void ZSTerminalView::onRendererResized()
 {
-    setImplicitWidth(m_renderer.image().width());
-    setImplicitHeight(m_renderer.image().height());
+    /* NOTE: do NOT setImplicitWidth/Height here. The terminal must always fill
+     * the area the layout gives it (Layout.fillWidth/Height: true); feeding the
+     * rendered image size back as the implicit size can make the layout shrink
+     * the item to a 80x24-sized box, which is exactly the "small region" bug. */
     update();
 }
 
@@ -35,6 +41,12 @@ void ZSTerminalView::onContentChanged()
 
 void ZSTerminalView::paint(QPainter *painter)
 {
+    /* Defensive backstop: ensure the raster matches the current item size on
+     * every frame. geometryChange() normally keeps it in sync, but this guards
+     * against the first geometry change firing before layout settled, or
+     * platforms where geometryChange arrives with a stale size. */
+    syncGridToGeometry();
+
     const QImage &img = m_renderer.image();
     if (img.isNull()) {
         painter->fillRect(boundingRect(), QColor(0, 0, 0));
@@ -65,10 +77,16 @@ void ZSTerminalView::syncGridToGeometry()
     const int cellH = m_renderer.cellHeight();
     if (cellW <= 0 || cellH <= 0)
         return;
-    const int cols = qMax(1, static_cast<int>(w / cellW));
-    const int rows = qMax(1, static_cast<int>(h / cellH));
+
+    /* ceil() so the raster always *covers* the whole item (no uncovered strip
+     * at the right/bottom edge). The renderer image is cols*cellW which is >=
+     * the item width; the tiny overflow is clipped by the item bounds. */
+    const int cols = qMax(1, static_cast<int>(qCeil(w / cellW)));
+    const int rows = qMax(1, static_cast<int>(qCeil(h / cellH)));
+
     if (cols == m_renderer.cols() && rows == m_renderer.rows())
         return;
+
     m_renderer.setGrid(cols, rows);
     if (m_backend)
         m_backend->resizeGrid(cols, rows);
