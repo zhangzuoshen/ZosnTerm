@@ -441,11 +441,60 @@ Window {
             }
 
             // --- 终端视图 ---
-            ZSTerminalView {
-                id: term
+            Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                focus: true
+
+                ZSTerminalView {
+                    id: term
+                    anchors.fill: parent
+                    focus: true
+                }
+
+                // 右键菜单层：仅拦截右键，左键透传给终端（用于聚焦/输入）
+                MouseArea {
+                    anchors.fill: parent
+                    acceptedButtons: Qt.RightButton
+                    onPressed: {
+                        var p = term.mapToItem(root.contentItem, mouse.x, mouse.y)
+                        ctxMenu.popup(p.x, p.y)
+                    }
+                }
+
+                // 查找栏（默认隐藏，从右键菜单"查找"唤出）
+                Rectangle {
+                    id: findBar
+                    visible: false
+                    anchors.top: parent.top
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    height: 34
+                    color: "#f2f4f7"
+                    border.color: root.border
+                    z: 5
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 8
+                        anchors.rightMargin: 8
+                        spacing: 6
+                        TextField {
+                            id: findInput
+                            Layout.fillWidth: true
+                            placeholderText: "查找..."
+                            onTextChanged: {
+                                var n = ZSApplication.findText(text)
+                                findStatus.text = (n > 0) ? ("匹配 " + n + " 处") : "无匹配"
+                            }
+                        }
+                        Button { text: "上一个"; implicitWidth: 64; onClicked: ZSApplication.findPrev() }
+                        Button { text: "下一个"; implicitWidth: 64; onClicked: ZSApplication.findNext() }
+                        Label { id: findStatus; text: ""; font.pointSize: 10 }
+                        Button {
+                            text: "✕"; implicitWidth: 32
+                            onClicked: { findBar.visible = false; ZSApplication.clearFind() }
+                        }
+                    }
+                }
             }
 
             // --- 底部状态栏 ---
@@ -469,5 +518,18 @@ Window {
 
     ZSSettingsDlg {
         id: settingsDlg
+    }
+
+    Menu {
+        id: ctxMenu
+        MenuItem { text: "全选"; onTriggered: ZSApplication.selectAll() }
+        MenuItem { text: "复制"; onTriggered: ZSApplication.copySelection() }
+        MenuItem { text: "粘贴"; onTriggered: ZSApplication.paste() }
+        MenuItem { text: "清屏"; onTriggered: ZSApplication.clearScreen() }
+        MenuSeparator { }
+        MenuItem {
+            text: "查找"
+            onTriggered: { findBar.visible = true; findInput.forceActiveFocus() }
+        }
     }
 }

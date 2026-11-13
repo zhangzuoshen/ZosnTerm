@@ -35,6 +35,9 @@ void zs_view_bell(void *host, int mode);
 /* Scrollbar state: total lines, current top (0=oldest, total-page=newest), visible page. */
 void zs_view_set_scrollbar(void *host, int total, int top, int page);
 
+/* Push copied terminal text to the system clipboard (C++ side). */
+void zs_view_set_clipboard(void *host, const wchar_t *text, int len);
+
 #ifdef __cplusplus
 }
 #endif

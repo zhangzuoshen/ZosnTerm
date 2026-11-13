@@ -60,6 +60,8 @@ extern "C" void zs_view_palette_set(void *host, unsigned s, unsigned n, const un
 extern "C" void zs_view_bell(void *host, int m)    { (void)host; (void)m; }
 extern "C" void zs_view_set_scrollbar(void *host, int total, int top, int page)
 { (void)host; (void)total; (void)top; (void)page; }
+extern "C" void zs_view_set_clipboard(void *host, const wchar_t *text, int len)
+{ (void)host; (void)text; (void)len; }
 
 static void pump(ZSTerminal term)
 {

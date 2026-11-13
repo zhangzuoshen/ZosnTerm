@@ -79,5 +79,25 @@ private:
     int  m_scrollTotal = 0;   // total lines (scrollback + visible)
     int  m_scrollTop  = 0;    // current top (0 = oldest, total-page = newest)
     int  m_scrollPage = 0;    // visible rows
+public:
+    /* Right-click context menu + find support (driven from QML). */
+    void scrollToBottom();
+    void scrollToAbsLine(int absLine);
+    void setFindHighlight(int absLine, int col, int len);
+    void clearFindHighlight();
+
+signals:
+    void contextMenuRequested(qreal x, qreal y);
+
+private:
+    void drawFindHighlight(QPainter *painter);
+
     bool m_scrolling = false;  // user is dragging the scrollbar thumb
+
+    /* Find highlight: an absolute line (0 = oldest scrollback) plus the
+     * character column/length of the current match, in terminal cells. */
+    bool m_findActive = false;
+    int  m_findAbsLine = -1;
+    int  m_findCol = 0;
+    int  m_findLen = 0;
 };

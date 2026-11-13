@@ -47,6 +47,14 @@ public:
     /* Keyboard / output bytes to send to the serial port. */
     Q_INVOKABLE void sendData(const QByteArray &data);
 
+    /* Right-click context-menu operations. */
+    void selectAll();
+    void copySelection();
+    void paste();
+    void clearScreen();
+    /* Full terminal text (scrollback + screen) for the find feature. */
+    QString extractFullText();
+
 signals:
     void statusMessage(const QString &msg);
 

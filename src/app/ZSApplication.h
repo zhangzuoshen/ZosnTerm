@@ -75,6 +75,19 @@ public:
     /* 依据系统区域默认编码：中文系统 GBK，其余 UTF-8。 */
     Q_INVOKABLE QString defaultEncoding() const;
 
+    /* ---- 右键菜单：编辑操作 ---- */
+    Q_INVOKABLE void selectAll();
+    Q_INVOKABLE void copySelection();
+    Q_INVOKABLE void paste();
+    Q_INVOKABLE void clearScreen();
+
+    /* ---- 查找 ---- */
+    /* 在终端全文中查找 query（大小写不敏感）。返回匹配数量；并通过视图高亮+滚动。 */
+    Q_INVOKABLE int findText(const QString &query);
+    Q_INVOKABLE int findNext();
+    Q_INVOKABLE int findPrev();
+    Q_INVOKABLE void clearFind();
+
 signals:
     void statusMessageChanged(const QString &msg);
     /* 加载会话/恢复配置后，UI 据此把参数回填到各 ComboBox。 */
@@ -103,4 +116,13 @@ private:
     QPointer<ZSPuTTYBackendAdapter> m_adapter;
     ZSSessionRepository *m_repo = nullptr;
     ZSConfigStore *m_config = nullptr;
+
+    /* 查找状态。 */
+    QString m_findText;
+    QString m_findQuery;
+    QVector<int> m_findOffsets;
+    int m_findIndex = 0;
+    int m_findCount = 0;
+
+    void applyFindMatch(int index);
 };

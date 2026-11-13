@@ -348,3 +348,94 @@ QString ZSApplication::defaultEncoding() const
     return (QLocale::system().language() == QLocale::Chinese)
                ? QStringLiteral("GBK") : QStringLiteral("UTF-8");
 }
+
+/* ---------------- 右键菜单：编辑操作 ---------------- */
+
+void ZSApplication::selectAll()
+{
+    if (m_adapter) m_adapter->selectAll();
+}
+
+void ZSApplication::copySelection()
+{
+    if (m_adapter) m_adapter->copySelection();
+}
+
+void ZSApplication::paste()
+{
+    if (m_adapter) m_adapter->paste();
+}
+
+void ZSApplication::clearScreen()
+{
+    if (m_adapter) m_adapter->clearScreen();
+}
+
+/* ---------------- 查找 ---------------- */
+
+int ZSApplication::findText(const QString &query)
+{
+    m_findQuery = query;
+    m_findText = m_adapter ? m_adapter->extractFullText() : QString();
+    m_findOffsets.clear();
+    m_findIndex = 0;
+    m_findCount = 0;
+    if (!query.isEmpty() && !m_findText.isEmpty()) {
+        const QString hay = m_findText.toLower();
+        const QString needle = query.toLower();
+        int from = 0;
+        int idx;
+        while ((idx = hay.indexOf(needle, from)) >= 0) {
+            m_findOffsets.append(idx);
+            from = idx + needle.length();
+        }
+        m_findCount = m_findOffsets.size();
+    }
+    if (m_findCount > 0)
+        applyFindMatch(0);
+    else if (m_view)
+        m_view->clearFindHighlight();
+    return m_findCount;
+}
+
+int ZSApplication::findNext()
+{
+    if (m_findCount <= 0)
+        return 0;
+    m_findIndex = (m_findIndex + 1) % m_findCount;
+    applyFindMatch(m_findIndex);
+    return m_findCount;
+}
+
+int ZSApplication::findPrev()
+{
+    if (m_findCount <= 0)
+        return 0;
+    m_findIndex = (m_findIndex - 1 + m_findCount) % m_findCount;
+    applyFindMatch(m_findIndex);
+    return m_findCount;
+}
+
+void ZSApplication::clearFind()
+{
+    m_findText.clear();
+    m_findQuery.clear();
+    m_findOffsets.clear();
+    m_findCount = 0;
+    m_findIndex = 0;
+    if (m_view)
+        m_view->clearFindHighlight();
+}
+
+void ZSApplication::applyFindMatch(int index)
+{
+    if (!m_view || index < 0 || index >= m_findCount)
+        return;
+    const int off = m_findOffsets[index];
+    const int lineStart = m_findText.lastIndexOf(QLatin1Char('\n'), off - 1) + 1;
+    const int col = off - lineStart;
+    const int absLine = m_findText.left(off).count(QLatin1Char('\n'));
+    const int len = m_findQuery.length();
+    m_view->setFindHighlight(absLine, col, len);
+    m_view->scrollToAbsLine(absLine);
+}

@@ -5,6 +5,7 @@
  * the opaque void* API in zs_putty_term.h. */
 
 #include "putty.h"
+#include "terminal.h"
 #include "zs_putty_term.h"
 #include "zs_view_calls.h"
 
@@ -13,8 +14,8 @@
 #include <stddef.h>
 #include <wchar.h>
 
-/* Scrollback lines retained for the on-screen scrollbar. */
-#define ZS_SAVELINES 2000
+/* editing-op forward decl (terminal.h is intentionally not included in this TU) */
+void term_clrsb(Terminal *);
 
 /* Scrollback lines retained for the on-screen scrollbar. */
 #define ZS_SAVELINES 2000
@@ -92,7 +93,10 @@ static void zs_tw_bell(TermWin *win, int mode)
 static void zs_tw_clip_write(TermWin *win, int cb, wchar_t *text, int *attrs,
                             truecolour *colours, int len, bool desel)
 {
-    (void)win;(void)cb;(void)text;(void)attrs;(void)colours;(void)len;(void)desel;
+    (void)attrs;(void)colours;(void)desel;
+    (void)cb;
+    struct ZSTermWin *z = ZS_CONTAINER_OF(win, struct ZSTermWin, base);
+    zs_view_set_clipboard(z->host, text, len);
 }
 
 static void zs_tw_clip_request_paste(TermWin *win, int cb) { (void)win;(void)cb; }
@@ -278,4 +282,77 @@ ZSTermWin zs_make_termwin(void *host)
 void zs_free_termwin(ZSTermWin termwin)
 {
     sfree((struct ZSTermWin *)termwin);
+}
+
+/* ------------------------------------------------------------------ */
+/* Editing operations                                                  */
+/* ------------------------------------------------------------------ */
+
+/* Select the entire scrollback + screen. Mirrors term_copyall's range.
+ * terminal.h (which defines `pos` and the selection enums) is intentionally
+ * NOT included here, so we assign the selstart/selend members directly and use
+ * the known enum integer values:
+ *   selstate: NO_SELECTION=0 ABOUT_TO=1 DRAGGING=2 SELECTED=3
+ *   seltype : LEXICOGRAPHIC=0 RECTANGULAR=1
+ *   selmode : SM_CHAR=0 SM_WORD=1 SM_LINE=2 */
+void zs_term_select_all(ZSTerminal term)
+{
+    Terminal *t = (Terminal *)term;
+    if (!t) return;
+    t->selstart.x = 0;
+    t->selstart.y = -ZS_SAVELINES;
+    t->selend.x = t->cols;
+    t->selend.y = t->rows + ZS_SAVELINES - 1;
+    t->seltype = 0;   /* LEXICOGRAPHIC */
+    t->selmode = 0;   /* SM_CHAR */
+    t->selstate = 3;  /* SELECTED */
+    term_update(t);
+}
+
+/* Copy the whole terminal buffer to the system clipboard. */
+void zs_term_copy(ZSTerminal term)
+{
+    Terminal *t = (Terminal *)term;
+    if (!t) return;
+    int cb = CLIP_LOCAL;
+    term_copyall(t, &cb, 1);   /* populates t->last_selected_text */
+    struct ZSTermWin *z = ZS_CONTAINER_OF(t->win, struct ZSTermWin, base);
+    zs_view_set_clipboard(z->host, t->last_selected_text, (int)t->last_selected_len);
+}
+
+/* Paste text from the system clipboard into the terminal input. */
+void zs_term_paste(ZSTerminal term, const wchar_t *data, size_t len)
+{
+    Terminal *t = (Terminal *)term;
+    if (!t || !data || len == 0) return;
+    term_do_paste(t, data, len);
+}
+
+/* Clear scrollback + reset the on-screen terminal (PuTTY's own reset). */
+void zs_term_clear(ZSTerminal term)
+{
+    Terminal *t = (Terminal *)term;
+    if (!t) return;
+    term_clrsb(t);
+    term_pwron(t, true);
+}
+
+/* Extract the full terminal text (scrollback + screen) as a NUL-terminated
+ * wchar_t buffer allocated with malloc(); the caller must free() it. */
+void zs_term_find_text(ZSTerminal term, wchar_t **out, size_t *out_len)
+{
+    Terminal *t = (Terminal *)term;
+    *out = NULL;
+    *out_len = 0;
+    if (!t) return;
+    int cb = CLIP_LOCAL;
+    term_copyall(t, &cb, 1);   /* populates t->last_selected_text */
+    size_t n = t->last_selected_len;
+    wchar_t *buf = (wchar_t *)malloc((n + 1) * sizeof(wchar_t));
+    if (!buf) return;
+    for (size_t i = 0; i < n; i++)
+        buf[i] = t->last_selected_text[i];
+    buf[n] = 0;
+    *out = buf;
+    *out_len = n;
 }

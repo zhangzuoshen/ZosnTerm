@@ -7,6 +7,7 @@
 #include <QMouseEvent>
 #include <QWheelEvent>
 #include <QGuiApplication>
+#include <QClipboard>
 #include <QtMath>
 
 static const qreal kScrollbarWidth = 12.0;
@@ -57,6 +58,7 @@ void ZSTerminalView::paint(QPainter *painter)
     }
     painter->drawImage(QPoint(0, 0), img);
     drawScrollbar(painter);
+    drawFindHighlight(painter);
 }
 
 void ZSTerminalView::setBackend(ZSPuTTYBackendAdapter *b)
@@ -329,7 +331,66 @@ extern "C" void zs_view_set_scrollbar(void *host, int total, int top, int page)
     if (v) v->setScrollbarInfo(total, top, page);
 }
 
+extern "C" void zs_view_set_clipboard(void *host, const wchar_t *text, int len)
+{
+    (void)host;
+    if (!text || len <= 0)
+        return;
+    QGuiApplication::clipboard()->setText(QString::fromWCharArray(text, len));
+}
+
 ZSPuTTYBackendAdapter *ZSTerminalView::backend() const
 {
     return m_backend;
+}
+
+void ZSTerminalView::scrollToBottom()
+{
+    if (m_scrollTotal <= 0 || m_scrollPage <= 0)
+        return;
+    scrollTo(qMax(0, m_scrollTotal - m_scrollPage));
+}
+
+void ZSTerminalView::scrollToAbsLine(int absLine)
+{
+    if (m_scrollTotal <= 0 || m_scrollPage <= 0)
+        return;
+    int maxScroll = qMax(0, m_scrollTotal - m_scrollPage);
+    int top = absLine - m_scrollPage / 2;
+    if (top < 0) top = 0;
+    if (top > maxScroll) top = maxScroll;
+    scrollTo(top);
+}
+
+void ZSTerminalView::setFindHighlight(int absLine, int col, int len)
+{
+    m_findActive = true;
+    m_findAbsLine = absLine;
+    m_findCol = col;
+    m_findLen = len;
+    update();
+}
+
+void ZSTerminalView::clearFindHighlight()
+{
+    m_findActive = false;
+    m_findAbsLine = -1;
+    update();
+}
+
+void ZSTerminalView::drawFindHighlight(QPainter *painter)
+{
+    if (!m_findActive || m_findAbsLine < 0)
+        return;
+    const int row = m_findAbsLine - m_scrollTop;
+    if (row < 0 || row >= m_scrollPage)
+        return;
+    const int cw = m_renderer.cellWidth();
+    const int ch = m_renderer.cellHeight();
+    if (cw <= 0 || ch <= 0)
+        return;
+    const qreal x = (qreal)m_findCol * cw;
+    const qreal y = (qreal)row * ch;
+    const qreal w = (qreal)m_findLen * cw;
+    painter->fillRect(QRectF(x, y, w, ch), QColor(255, 230, 0, 170));
 }

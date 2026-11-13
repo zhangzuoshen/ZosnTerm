@@ -3,6 +3,10 @@
 
 #include <QDebug>
 #include <QSerialPort>
+#include <QGuiApplication>
+#include <QClipboard>
+#include <cstdlib>
+#include <string>
 
 ZSPuTTYBackendAdapter::ZSPuTTYBackendAdapter(QObject *parent)
     : ZSIConnection(parent)
@@ -172,4 +176,56 @@ void ZSPuTTYBackendAdapter::resizeGrid(int cols, int rows)
     m_rows = qMax(1, rows);
     if (m_open && m_term)
         zs_term_size(m_term, m_rows, m_cols, 0);
+}
+
+void ZSPuTTYBackendAdapter::selectAll()
+{
+    if (m_open && m_term)
+        zs_term_select_all(m_term);
+}
+
+void ZSPuTTYBackendAdapter::copySelection()
+{
+    if (m_open && m_term)
+        zs_term_copy(m_term);
+}
+
+void ZSPuTTYBackendAdapter::paste()
+{
+    if (!m_open || !m_term)
+        return;
+    const QString clip = QGuiApplication::clipboard()->text();
+    if (clip.isEmpty())
+        return;
+    std::wstring w = clip.toStdWString();
+    zs_term_paste(m_term, w.data(), w.size());
+    zs_tick(m_term);
+    if (m_view)
+        m_view->update();
+}
+
+void ZSPuTTYBackendAdapter::clearScreen()
+{
+    if (!m_open || !m_term)
+        return;
+    zs_term_clear(m_term);
+    zs_tick(m_term);
+    if (m_view) {
+        m_view->scrollToBottom();
+        m_view->update();
+    }
+}
+
+QString ZSPuTTYBackendAdapter::extractFullText()
+{
+    if (!m_open || !m_term)
+        return QString();
+    wchar_t *buf = nullptr;
+    size_t len = 0;
+    zs_term_find_text(m_term, &buf, &len);
+    if (!buf)
+        return QString();
+    QString s = QString::fromWCharArray(buf, (int)len);
+    free(buf);
+    return s;
 }

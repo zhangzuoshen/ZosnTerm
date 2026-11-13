@@ -53,7 +53,15 @@ void        zs_term_set_trust(ZSTerminal term, int trusted);
 /* Drive timers + toplevel callbacks + paint. Call from a Qt timer tick. */
 void        zs_tick(ZSTerminal term);
 void        zs_term_scroll_to(ZSTerminal term, int top, int total, int page);
-void        zs_term_scroll_to(ZSTerminal term, int top, int total, int page);
+
+/* ---- Editing operations (selection / clipboard / clear / find) ---- */
+void        zs_term_select_all(ZSTerminal term);
+void        zs_term_copy(ZSTerminal term);
+void        zs_term_paste(ZSTerminal term, const wchar_t *data, size_t len);
+void        zs_term_clear(ZSTerminal term);
+/* Extract the full terminal text (scrollback + screen) into a malloc'd
+ * wchar_t buffer (NUL-terminated). Caller must free() it. */
+void        zs_term_find_text(ZSTerminal term, wchar_t **out, size_t *out_len);
 
 /* TermWin (front-end drawing surface) bound to a host object (the view). */
 ZSTermWin   zs_make_termwin(void *host);
