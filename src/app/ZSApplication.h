@@ -6,11 +6,18 @@
 #include <QPointer>
 #include <QVariantMap>
 #include <QVariantList>
+#include <QMap>
 
 class ZSTerminalView;        /* forward decl; full def pulled in by .cpp */
 class ZSPuTTYBackendAdapter; /* forward decl */
 class ZSSessionRepository;   /* forward decl; M4 会话持久化 */
 class ZSConfigStore;         /* forward decl; M5 全局设置 */
+
+// M13: 每个会话一套独立的终端视图 + PuTTY 引擎实例。
+struct ZSSessionTerm {
+    QPointer<ZSTerminalView> view;
+    QPointer<ZSPuTTYBackendAdapter> adapter;
+};
 
 // 应用根对象：作为 QML 上下文属性 "ZSApplication" 暴露给 UI。
 // M2：持有并驱动一个 ZSPuTTYBackendAdapter（内嵌 PuTTY 终端仿真引擎）。
@@ -50,6 +57,16 @@ public:
     /* 无参快捷连接（阶段一默认参数）；保留以兼容旧入口。 */
     Q_INVOKABLE void newSerialSession();
     Q_INVOKABLE void closeSerialSession();
+
+    /* ---- M13 多会话独立终端 ---- */
+    /* QML 为每个会话创建 ZSTerminalView 后调用，绑定独立 PuTTY 引擎。 */
+    Q_INVOKABLE void registerSessionView(const QString &name, QObject *viewObj);
+    /* 切换当前激活会话（仅切显示/状态，不连接或断开任何串口）。 */
+    Q_INVOKABLE void setActiveSession(const QString &name);
+    /* 连接/断开指定会话，互不影响。 */
+    Q_INVOKABLE void connectSession(const QString &name);
+    Q_INVOKABLE void closeSession(const QString &name);
+    Q_INVOKABLE QString activeSession() const;
 
     /* ---- M4 会话管理 ---- */
     Q_INVOKABLE QStringList sessionNames() const;
@@ -111,12 +128,23 @@ private:
     void setConnectionSummary(const QString &s);
     /* parity 数值 -> 字符（N/O/E/M/S）。 */
     static QChar parityChar(int parity);
+    /* 当前激活会话的引擎/视图（可能为 null）。 */
+    ZSPuTTYBackendAdapter *activeAdapter() const;
+    ZSTerminalView *activeView() const;
+    /* 按会话参数生成连接摘要。 */
+    QString buildSummary(const QString &name) const;
+    /* 把外观设置应用到指定视图。 */
+    void applySettingsToView(ZSTerminalView *view) const;
+    /* 让全局 connected/summary 反映当前激活会话。 */
+    void refreshActiveStatus();
 
     QString m_statusMessage;
     bool m_connected = false;
     QString m_connectionSummary;
-    QPointer<ZSTerminalView> m_view;
-    QPointer<ZSPuTTYBackendAdapter> m_adapter;
+    QPointer<ZSTerminalView> m_view;              // = 当前激活会话的视图
+    QPointer<ZSPuTTYBackendAdapter> m_adapter;    // = 当前激活会话的引擎
+    QMap<QString, ZSSessionTerm> m_terms;         // 会话名 -> 独立终端
+    QString m_activeSession;
     ZSSessionRepository *m_repo = nullptr;
     ZSConfigStore *m_config = nullptr;
 

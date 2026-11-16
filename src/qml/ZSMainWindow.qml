@@ -30,6 +30,21 @@ Window {
 
     function refreshSessions() { sessionModel = ZSApplication.sessionList(); }
 
+    // 会话名 -> sessionModel 下标（-1 表示未找到）。
+    function sessionIndex(name) {
+        for (var i = 0; i < sessionModel.length; ++i)
+            if (sessionModel[i].name === name) return i
+        return -1
+    }
+
+    // 统一切换会话：更新激活项、通知 C++、切到对应终端视图。
+    function selectSession(name) {
+        activeSession = name
+        ZSApplication.setActiveSession(name)
+        var idx = sessionIndex(name)
+        if (idx >= 0) termStack.currentIndex = idx
+    }
+
     // 打开新建会话对话框，用上次使用的参数作为默认值。
     function openNewSession() {
         var last = ZSApplication.lastParams()
@@ -44,6 +59,8 @@ Window {
 
     Component.onCompleted: {
         refreshSessions()
+        if (sessionModel.length > 0)
+            selectSession(sessionModel[0].name)
     }
 
     Connections {
@@ -122,8 +139,8 @@ Window {
                             }
                             onClicked: {
                                 sessList.currentIndex = index;
-                                activeSession = modelData.name;
-                                ZSApplication.openSession(modelData.name);
+                                selectSession(modelData.name);
+                                ZSApplication.connectSession(modelData.name);
                             }
                             RowLayout {
                                 anchors.fill: parent
@@ -326,7 +343,7 @@ Window {
                                         var p = mapToItem(root.contentItem, mouse.x, mouse.y)
                                         tabCtxMenu.popup(p.x, p.y)
                                     } else {
-                                        activeSession = modelData.name
+                                        selectSession(modelData.name)
                                         sessList.currentIndex = index
                                     }
                                 }
@@ -357,15 +374,25 @@ Window {
                 }
             }
 
-            // --- 终端视图 ---
+            // --- 终端视图：每个会话一个独立终端（M13） ---
             Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
-                ZSTerminalView {
-                    id: term
+                StackLayout {
+                    id: termStack
                     anchors.fill: parent
-                    focus: true
+                    currentIndex: sessionIndex(activeSession)
+
+                    Repeater {
+                        model: sessionModel
+                        ZSTerminalView {
+                            // 每个视图在完成后向 C++ 注册，绑定独立 PuTTY 引擎。
+                            Component.onCompleted: {
+                                ZSApplication.registerSessionView(modelData.name, this)
+                            }
+                        }
+                    }
                 }
 
                 // 右键菜单层：仅拦截右键，左键透传给终端（用于聚焦/输入）
@@ -374,7 +401,9 @@ Window {
                     acceptedButtons: Qt.RightButton
                     onPressed: function(mouse) {
                         ZSApplication.cancelSelection()
-                        var p = term.mapToItem(root.contentItem, mouse.x, mouse.y)
+                        var t = termStack.currentItem
+                        var p = t ? t.mapToItem(root.contentItem, mouse.x, mouse.y)
+                                  : mapToItem(root.contentItem, mouse.x, mouse.y)
                         ctxMenu.popup(p.x, p.y)
                     }
                 }
@@ -445,7 +474,7 @@ Window {
             for (var i = 0; i < sessionModel.length; ++i) {
                 if (sessionModel[i].name === name) {
                     sessList.currentIndex = i;
-                    activeSession = name;
+                    selectSession(name);
                     break;
                 }
             }
@@ -458,24 +487,27 @@ Window {
         MenuItem {
             text: "连接"
             enabled: !ZSApplication.connected
-            onTriggered: {
-                activeSession = tabCtxMenu.sessionName
-                ZSApplication.openSession(tabCtxMenu.sessionName)
-            }
+            onTriggered: ZSApplication.connectSession(tabCtxMenu.sessionName)
         }
         MenuItem {
             text: "断开"
             enabled: ZSApplication.connected
-            onTriggered: ZSApplication.closeSerialSession()
+            onTriggered: ZSApplication.closeSession(tabCtxMenu.sessionName)
         }
         MenuSeparator { }
         MenuItem {
             text: "删除会话"
             onTriggered: {
-                ZSApplication.deleteSession(tabCtxMenu.sessionName)
+                var removed = tabCtxMenu.sessionName
+                ZSApplication.deleteSession(removed)
                 refreshSessions()
-                if (activeSession === tabCtxMenu.sessionName) activeSession = ""
                 sessList.currentIndex = -1
+                if (activeSession === removed) {
+                    if (sessionModel.length > 0)
+                        selectSession(sessionModel[0].name)
+                    else
+                        activeSession = ""
+                }
             }
         }
     }

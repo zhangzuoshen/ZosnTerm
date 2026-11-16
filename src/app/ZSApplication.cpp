@@ -103,27 +103,85 @@ QStringList ZSApplication::availablePorts() const
     return ports;
 }
 
+/* 把一组串口参数应用到某会话的引擎上（引擎须已由 registerSessionView 建立）。 */
 void ZSApplication::openWith(const QString &port, int baudRate, int dataBits,
                             int stopBits, int parity, int flow,
                             const QString &codepage)
 {
-    if (!m_view) {
-        setStatusMessage(QStringLiteral("未找到终端视图 (ZSTerminalView)"));
+    ZSPuTTYBackendAdapter *adapter = activeAdapter();
+    if (!adapter) {
+        setStatusMessage(QStringLiteral("会话终端未就绪"));
         return;
     }
-    if (m_adapter)
-        closeSerialSession();
+    if (adapter->isOpen())
+        return;   // 已连接则保持，不重复建链
 
-    auto *adapter = new ZSPuTTYBackendAdapter(this);
-    adapter->setView(m_view);
-    m_view->setBackend(adapter);
     adapter->setConnectionParameters(port, baudRate, dataBits, stopBits, parity, flow);
     adapter->setCodepage(codepage.isEmpty() ? defaultEncoding() : codepage);
+
+    if (!adapter->open())
+        setStatusMessage(
+            QStringLiteral("打开串口失败（检查设备 %1 与权限）").arg(port));
+    refreshActiveStatus();
+}
+
+/* ---------------- M13 多会话独立终端 ---------------- */
+
+ZSPuTTYBackendAdapter *ZSApplication::activeAdapter() const
+{
+    return m_adapter.data();
+}
+
+ZSTerminalView *ZSApplication::activeView() const
+{
+    return m_view.data();
+}
+
+QString ZSApplication::buildSummary(const QString &name) const
+{
+    const ZSSerialProfile p = m_repo->loadProfile(name);
+    if (p.port.isEmpty())
+        return QString();
+    return QStringLiteral("%1 · %2 %3%4%5")
+        .arg(p.port).arg(p.baudRate).arg(p.dataBits)
+        .arg(parityChar(p.parity))
+        .arg(p.stopBits == 3 ? QStringLiteral("1.5") : QString::number(p.stopBits));
+}
+
+void ZSApplication::refreshActiveStatus()
+{
+    setConnected(activeAdapter() && activeAdapter()->isOpen());
+    setConnectionSummary(buildSummary(m_activeSession));
+}
+
+void ZSApplication::registerSessionView(const QString &name, QObject *viewObj)
+{
+    auto *view = qobject_cast<ZSTerminalView *>(viewObj);
+    if (!view || name.isEmpty())
+        return;
+
+    ZSSessionTerm &ctx = m_terms[name];
+    if (ctx.view == view && ctx.adapter)
+        return;   // 已注册
+
+    ctx.view = view;
+    auto *adapter = new ZSPuTTYBackendAdapter(this);
+    adapter->setView(view);
+    view->setBackend(adapter);
+
+    // M4：用会话保存的参数预置引擎（未连接时仅配置，不占串口）。
+    const ZSSerialProfile p = m_repo->loadProfile(name);
+    adapter->setConnectionParameters(p.port, p.baudRate, p.dataBits,
+                                     p.stopBits, p.parity, p.flow);
+    adapter->setCodepage(p.codepage.isEmpty() ? defaultEncoding() : p.codepage);
 
     connect(adapter, &ZSPuTTYBackendAdapter::statusMessage,
             this, &ZSApplication::setStatusMessage);
     connect(adapter, &ZSIConnection::stateChanged, this,
-            [this](ZSIConnection::State s) {
+            [this, name](ZSIConnection::State s) {
+                // 只让当前激活会话驱动全局状态显示；后台会话连/断不影响状态栏。
+                if (name != m_activeSession)
+                    return;
                 QString txt = "未知";
                 switch (s) {
                 case ZSIConnection::State::Connecting:   txt = "连接中"; break;
@@ -133,20 +191,81 @@ void ZSApplication::openWith(const QString &port, int baudRate, int dataBits,
                 }
                 setStatusMessage(QStringLiteral("串口状态：%1").arg(txt));
                 setConnected(s == ZSIConnection::State::Connected);
+                if (s == ZSIConnection::State::Disconnected)
+                    setConnectionSummary(QString());
             });
 
-    // M6：连接摘要，供标签页 / 状态栏显示。
-    const QString summary = QStringLiteral("%1 · %2 %3%4%5")
-        .arg(port).arg(baudRate).arg(dataBits)
-        .arg(parityChar(parity))
-        .arg(stopBits == 3 ? QStringLiteral("1.5") : QString::number(stopBits));
-    setConnectionSummary(summary);
+    ctx.adapter = adapter;
+    applySettingsToView(view);
 
-    m_adapter = adapter;
+    // 首个注册的会话自动成为激活会话。
+    if (m_activeSession.isEmpty())
+        setActiveSession(name);
+}
 
-    if (!adapter->open()) {
+void ZSApplication::setActiveSession(const QString &name)
+{
+    if (name == m_activeSession && m_adapter)
+        return;
+    auto it = m_terms.find(name);
+    if (it == m_terms.end())
+        return;
+
+    m_activeSession = name;
+    m_view = it.value().view;
+    m_adapter = it.value().adapter;
+    refreshActiveStatus();
+    clearFind();   // 切换会话清掉旧会话的查找高亮
+}
+
+QString ZSApplication::activeSession() const
+{
+    return m_activeSession;
+}
+
+void ZSApplication::connectSession(const QString &name)
+{
+    auto it = m_terms.find(name);
+    if (it == m_terms.end()) {
+        setStatusMessage(QStringLiteral("会话终端未就绪：%1").arg(name));
+        return;
+    }
+    ZSPuTTYBackendAdapter *adapter = it.value().adapter.data();
+    if (!adapter) {
+        setStatusMessage(QStringLiteral("会话引擎未就绪：%1").arg(name));
+        return;
+    }
+    // 切为激活会话，使状态显示与输入都指向它。
+    setActiveSession(name);
+
+    const ZSSerialProfile p = m_repo->loadProfile(name);
+    if (p.port.isEmpty()) {
+        setStatusMessage(QStringLiteral("未找到会话：%1").arg(name));
+        return;
+    }
+    if (adapter->isOpen())
+        return;   // 保持已有连接，重复右键连接不重连
+
+    adapter->setConnectionParameters(p.port, p.baudRate, p.dataBits,
+                                     p.stopBits, p.parity, p.flow);
+    adapter->setCodepage(p.codepage.isEmpty() ? defaultEncoding() : p.codepage);
+    m_repo->setLastProfile(p);
+    if (!adapter->open())
         setStatusMessage(
-            QStringLiteral("打开串口失败（检查设备 %1 与权限）").arg(port));
+            QStringLiteral("打开串口失败（检查设备 %1 与权限）").arg(p.port));
+    refreshActiveStatus();
+}
+
+void ZSApplication::closeSession(const QString &name)
+{
+    auto it = m_terms.find(name);
+    if (it == m_terms.end())
+        return;
+    ZSPuTTYBackendAdapter *adapter = it.value().adapter.data();
+    if (adapter && adapter->isOpen())
+        adapter->close();
+    if (name == m_activeSession) {
+        setConnected(false);
         setConnectionSummary(QString());
     }
 }
@@ -181,13 +300,7 @@ void ZSApplication::newSerialSession()
 
 void ZSApplication::closeSerialSession()
 {
-    if (m_adapter) {
-        m_adapter->close();
-        m_adapter->deleteLater();
-        m_adapter = nullptr;
-    }
-    setConnected(false);
-    setConnectionSummary(QString());
+    closeSession(m_activeSession);
 }
 
 /* ---------------- M4 会话管理 ---------------- */
@@ -255,23 +368,32 @@ void ZSApplication::loadSession(const QString &name)
 
 void ZSApplication::deleteSession(const QString &name)
 {
-    if (m_repo->deleteProfile(name))
+    if (m_repo->deleteProfile(name)) {
+        // 先断开并移除该会话引擎，再清上下文。
+        auto it = m_terms.find(name);
+        if (it != m_terms.end()) {
+            ZSPuTTYBackendAdapter *adapter = it.value().adapter.data();
+            if (adapter && adapter->isOpen())
+                adapter->close();
+            if (adapter)
+                adapter->deleteLater();
+            m_terms.remove(name);
+        }
+        if (m_activeSession == name) {
+            m_activeSession.clear();
+            m_view = nullptr;
+            m_adapter = nullptr;
+            refreshActiveStatus();
+        }
         setStatusMessage(QStringLiteral("已删除会话：%1").arg(name));
-    else
+    } else {
         setStatusMessage(QStringLiteral("未找到会话：%1").arg(name));
+    }
 }
 
 void ZSApplication::openSession(const QString &name)
 {
-    ZSSerialProfile p = m_repo->loadProfile(name);
-    if (p.port.isEmpty()) {
-        setStatusMessage(QStringLiteral("未找到会话：%1").arg(name));
-        return;
-    }
-    // 更新上次配置并立即连接（MobaXTerm 双击会话的行为）。
-    m_repo->setLastProfile(p);
-    openWith(p.port, p.baudRate, p.dataBits, p.stopBits, p.parity, p.flow,
-            p.codepage.isEmpty() ? defaultEncoding() : p.codepage);
+    connectSession(name);
 }
 
 QVariantMap ZSApplication::lastParams() const
@@ -290,11 +412,11 @@ QVariantMap ZSApplication::lastParams() const
 
 /* ---------------- M5 外观/字体/主题设置 ---------------- */
 
-void ZSApplication::applySettings()
+void ZSApplication::applySettingsToView(ZSTerminalView *view) const
 {
-    if (!m_view || !m_config)
+    if (!view || !m_config)
         return;
-    auto *r = m_view->renderer();
+    auto *r = view->renderer();
 
     const QString fam = m_config->value(QStringLiteral("appearance/fontFamily"),
                                         QStringLiteral("DejaVu Sans Mono")).toString();
@@ -314,6 +436,15 @@ void ZSApplication::applySettings()
     r->setDefaultBackground(bg);
     r->setCursorColor(cur);
     r->setCursorShape(shape);
+}
+
+void ZSApplication::applySettings()
+{
+    for (auto it = m_terms.constBegin(); it != m_terms.constEnd(); ++it)
+        applySettingsToView(it.value().view.data());
+    // 兼容：若通过 setTerminalView 注入过独立视图也应用。
+    if (m_view)
+        applySettingsToView(m_view.data());
 }
 
 QStringList ZSApplication::fontFamilies() const
