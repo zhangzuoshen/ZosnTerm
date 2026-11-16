@@ -1,6 +1,7 @@
 #pragma once
 #include <QQuickPaintedItem>
 #include <QPointer>
+#include <QVector>
 #include "ZSTerminalRenderer.h"
 
 class ZSPuTTYBackendAdapter; /* forward decl; includes kept out of the header */
@@ -18,6 +19,13 @@ class ZSPuTTYBackendAdapter; /* forward decl; includes kept out of the header */
  * Scroll: PuTTY keeps a scrollback buffer; we expose it through an on-screen
  * scrollbar (wheel to scroll back, drag the thumb to seek) driven by the
  * zs_view_set_scrollbar callback. */
+/* One find hit: absolute line (0 = oldest scrollback), start column and length. */
+struct ZSFindMatch {
+    int absLine = -1;
+    int col = 0;
+    int len = 0;
+};
+
 class ZSTerminalView : public QQuickPaintedItem
 {
     Q_OBJECT
@@ -66,6 +74,7 @@ private:
 
     /* Scrollbar geometry (track is a thin strip on the right edge). */
     bool isInScrollbar(const QPointF &p) const;
+    void cellFromPos(const QPointF &p, int &col, int &row) const;
     qreal scrollbarTrackHeight() const;
     qreal scrollbarThumbHeight() const;
     int   scrollTopFromPos(qreal y) const;
@@ -83,7 +92,7 @@ public:
     /* Right-click context menu + find support (driven from QML). */
     void scrollToBottom();
     void scrollToAbsLine(int absLine);
-    void setFindHighlight(int absLine, int col, int len);
+    void setFindMatches(const QVector<ZSFindMatch> &matches, int currentIndex);
     void clearFindHighlight();
 
 signals:
@@ -94,10 +103,8 @@ private:
 
     bool m_scrolling = false;  // user is dragging the scrollbar thumb
 
-    /* Find highlight: an absolute line (0 = oldest scrollback) plus the
-     * character column/length of the current match, in terminal cells. */
-    bool m_findActive = false;
-    int  m_findAbsLine = -1;
-    int  m_findCol = 0;
-    int  m_findLen = 0;
+    /* All find hits and which one is currently focused. */
+    QVector<ZSFindMatch> m_findMatches;
+    int m_findCurrent = -1;
+    bool m_textSelecting = false;  /* left-button drag selection in progress */
 };

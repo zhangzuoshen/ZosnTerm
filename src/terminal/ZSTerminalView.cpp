@@ -121,6 +121,16 @@ void ZSTerminalView::mousePressEvent(QMouseEvent *event)
         event->accept();
         return;
     }
+    if (event->button() == Qt::RightButton && m_textSelecting) {
+        if (m_backend) m_backend->cancelSelection();
+        m_textSelecting = false;
+    }
+    if (event->button() == Qt::LeftButton && m_backend) {
+        int col = 0, row = 0;
+        cellFromPos(event->position(), col, row);
+        m_backend->mouseSelect(ZS_MOUSE_CLICK, col, row);
+        m_textSelecting = true;
+    }
     forceActiveFocus();
     event->accept();
 }
@@ -132,12 +142,27 @@ void ZSTerminalView::mouseMoveEvent(QMouseEvent *event)
         event->accept();
         return;
     }
+    if (m_textSelecting && m_backend) {
+        int col = 0, row = 0;
+        cellFromPos(event->position(), col, row);
+        m_backend->mouseSelect(ZS_MOUSE_DRAG, col, row);
+        event->accept();
+        return;
+    }
     QQuickPaintedItem::mouseMoveEvent(event);
 }
 
 void ZSTerminalView::mouseReleaseEvent(QMouseEvent *event)
 {
     m_scrolling = false;
+    if (m_textSelecting && m_backend) {
+        int col = 0, row = 0;
+        cellFromPos(event->position(), col, row);
+        m_backend->mouseSelect(ZS_MOUSE_RELEASE, col, row);
+        m_textSelecting = false;
+        event->accept();
+        return;
+    }
     QQuickPaintedItem::mouseReleaseEvent(event);
 }
 
@@ -164,6 +189,17 @@ void ZSTerminalView::setScrollbarInfo(int total, int top, int page)
 bool ZSTerminalView::isInScrollbar(const QPointF &p) const
 {
     return p.x() >= width() - kScrollbarWidth && p.x() <= width();
+}
+
+/* Map a pixel position to a terminal cell (clamped to the current grid). */
+void ZSTerminalView::cellFromPos(const QPointF &p, int &col, int &row) const
+{
+    const int cw = m_renderer.cellWidth();
+    const int ch = m_renderer.cellHeight();
+    col = (cw > 0) ? qMax(0, (int)(p.x() / cw)) : 0;
+    row = (ch > 0) ? qMax(0, (int)(p.y() / ch)) : 0;
+    col = qMin(col, qMax(0, m_renderer.cols() - 1));
+    row = qMin(row, qMax(0, m_renderer.rows() - 1));
 }
 
 qreal ZSTerminalView::scrollbarTrackHeight() const
@@ -362,35 +398,38 @@ void ZSTerminalView::scrollToAbsLine(int absLine)
     scrollTo(top);
 }
 
-void ZSTerminalView::setFindHighlight(int absLine, int col, int len)
+void ZSTerminalView::setFindMatches(const QVector<ZSFindMatch> &matches, int currentIndex)
 {
-    m_findActive = true;
-    m_findAbsLine = absLine;
-    m_findCol = col;
-    m_findLen = len;
+    m_findMatches = matches;
+    m_findCurrent = currentIndex;
     update();
 }
 
 void ZSTerminalView::clearFindHighlight()
 {
-    m_findActive = false;
-    m_findAbsLine = -1;
+    m_findMatches.clear();
+    m_findCurrent = -1;
     update();
 }
 
 void ZSTerminalView::drawFindHighlight(QPainter *painter)
 {
-    if (!m_findActive || m_findAbsLine < 0)
-        return;
-    const int row = m_findAbsLine - m_scrollTop;
-    if (row < 0 || row >= m_scrollPage)
+    if (m_findMatches.isEmpty())
         return;
     const int cw = m_renderer.cellWidth();
     const int ch = m_renderer.cellHeight();
     if (cw <= 0 || ch <= 0)
         return;
-    const qreal x = (qreal)m_findCol * cw;
-    const qreal y = (qreal)row * ch;
-    const qreal w = (qreal)m_findLen * cw;
-    painter->fillRect(QRectF(x, y, w, ch), QColor(255, 230, 0, 170));
+    for (int i = 0; i < m_findMatches.size(); ++i) {
+        const ZSFindMatch &m = m_findMatches.at(i);
+        const int row = m.absLine - m_scrollTop;
+        if (row < 0 || row >= m_scrollPage)
+            continue;
+        /* Current hit is orange; the rest are translucent yellow. */
+        const QColor color = (i == m_findCurrent)
+            ? QColor(255, 140, 0, 210)
+            : QColor(255, 230, 0, 120);
+        painter->fillRect(QRectF((qreal)m.col * cw, (qreal)row * ch,
+                                 (qreal)m.len * cw, (qreal)ch), color);
+    }
 }

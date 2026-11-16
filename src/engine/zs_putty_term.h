@@ -55,7 +55,13 @@ void        zs_tick(ZSTerminal term);
 void        zs_term_scroll_to(ZSTerminal term, int top, int total, int page);
 
 /* ---- Editing operations (selection / clipboard / clear / find) ---- */
+/* Mouse selection actions (subset of PuTTY Mouse_Action). */
+#define ZS_MOUSE_CLICK   1
+#define ZS_MOUSE_DRAG    4
+#define ZS_MOUSE_RELEASE 5
 void        zs_term_select_all(ZSTerminal term);
+void        zs_term_mouse(ZSTerminal term, int action, int x, int y);
+void        zs_term_cancel_selection(ZSTerminal term);
 void        zs_term_copy(ZSTerminal term);
 void        zs_term_paste(ZSTerminal term, const wchar_t *data, size_t len);
 void        zs_term_clear(ZSTerminal term);

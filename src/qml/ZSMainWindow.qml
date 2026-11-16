@@ -456,6 +456,7 @@ Window {
                     anchors.fill: parent
                     acceptedButtons: Qt.RightButton
                     onPressed: {
+                        ZSApplication.cancelSelection()
                         var p = term.mapToItem(root.contentItem, mouse.x, mouse.y)
                         ctxMenu.popup(p.x, p.y)
                     }

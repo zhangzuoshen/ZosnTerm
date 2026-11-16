@@ -306,6 +306,8 @@ void zs_term_select_all(ZSTerminal term)
     t->seltype = 0;   /* LEXICOGRAPHIC */
     t->selmode = 0;   /* SM_CHAR */
     t->selstate = 3;  /* SELECTED */
+    /* Populate last_selected_text so a later Copy yields the whole buffer. */
+    { int cb = CLIP_LOCAL; term_copyall(t, &cb, 1); }
     term_update(t);
 }
 
@@ -314,8 +316,12 @@ void zs_term_copy(ZSTerminal term)
 {
     Terminal *t = (Terminal *)term;
     if (!t) return;
-    int cb = CLIP_LOCAL;
-    term_copyall(t, &cb, 1);   /* populates t->last_selected_text */
+    if (t->selstate != 3 || t->last_selected_len <= 0) {
+        /* No active selection: fall back to copying the whole buffer. */
+        int cb = CLIP_LOCAL;
+        term_copyall(t, &cb, 1);
+    }
+    /* Otherwise term_mouse(MA_RELEASE) already filled last_selected_text. */
     struct ZSTermWin *z = ZS_CONTAINER_OF(t->win, struct ZSTermWin, base);
     zs_view_set_clipboard(z->host, t->last_selected_text, (int)t->last_selected_len);
 }
@@ -335,6 +341,31 @@ void zs_term_clear(ZSTerminal term)
     if (!t) return;
     term_clrsb(t);
     term_pwron(t, true);
+}
+
+/* Forward a left-button selection gesture into PuTTY's native mouse
+ * handler. action: ZS_MOUSE_CLICK / ZS_MOUSE_DRAG / ZS_MOUSE_RELEASE.
+ * x,y are terminal cell coords relative to the visible screen; PuTTY adds
+ * disptop internally to address scrollback lines. On MA_RELEASE PuTTY runs
+ * clipme(CLIP_LOCAL), which fills t->last_selected_text with the selection,
+ * and paints the highlight via ATTR_REVERSE. */
+void zs_term_mouse(ZSTerminal term, int action, int x, int y)
+{
+    Terminal *t = (Terminal *)term;
+    if (!t) return;
+    static const Mouse_Action actions[] = {
+        MA_NOTHING, MA_CLICK, MA_2CLK, MA_3CLK, MA_DRAG, MA_RELEASE, MA_MOVE
+    };
+    const int n = (int)(sizeof(actions) / sizeof(actions[0]));
+    Mouse_Action a = (action >= 0 && action < n) ? actions[action] : MA_NOTHING;
+    term_mouse(t, MBT_LEFT, MBT_SELECT, a, x, y, false, false, false);
+    term_update(t);  /* ensure renderer reflects the new selection attrs */
+}
+
+void zs_term_cancel_selection(ZSTerminal term)
+{
+    Terminal *t = (Terminal *)term;
+    if (t) term_cancel_selection_drag(t);
 }
 
 /* Extract the full terminal text (scrollback + screen) as a NUL-terminated

@@ -80,6 +80,7 @@ public:
     Q_INVOKABLE void copySelection();
     Q_INVOKABLE void paste();
     Q_INVOKABLE void clearScreen();
+    Q_INVOKABLE void cancelSelection();
 
     /* ---- 查找 ---- */
     /* 在终端全文中查找 query（大小写不敏感）。返回匹配数量；并通过视图高亮+滚动。 */

@@ -216,6 +216,18 @@ void ZSPuTTYBackendAdapter::clearScreen()
     }
 }
 
+void ZSPuTTYBackendAdapter::mouseSelect(int action, int col, int row)
+{
+    if (m_open && m_term)
+        zs_term_mouse(m_term, action, col, row);
+}
+
+void ZSPuTTYBackendAdapter::cancelSelection()
+{
+    if (m_open && m_term)
+        zs_term_cancel_selection(m_term);
+}
+
 QString ZSPuTTYBackendAdapter::extractFullText()
 {
     if (!m_open || !m_term)

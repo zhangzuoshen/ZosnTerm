@@ -52,6 +52,9 @@ public:
     void copySelection();
     void paste();
     void clearScreen();
+    /* Mouse text selection; action is one of ZS_MOUSE_* from zs_putty_term.h. */
+    void mouseSelect(int action, int col, int row);
+    void cancelSelection();
     /* Full terminal text (scrollback + screen) for the find feature. */
     QString extractFullText();
 

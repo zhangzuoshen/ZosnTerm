@@ -123,14 +123,14 @@ void ZSApplication::openWith(const QString &port, int baudRate, int dataBits,
             this, &ZSApplication::setStatusMessage);
     connect(adapter, &ZSIConnection::stateChanged, this,
             [this](ZSIConnection::State s) {
-                const char *txt = "未知";
+                QString txt = "未知";
                 switch (s) {
                 case ZSIConnection::State::Connecting:   txt = "连接中"; break;
                 case ZSIConnection::State::Connected:     txt = "已连接"; break;
                 case ZSIConnection::State::Disconnected:  txt = "已断开"; break;
                 case ZSIConnection::State::Error:         txt = "错误";   break;
                 }
-                setStatusMessage(QStringLiteral("串口状态：%1").arg(QString::fromLatin1(txt)));
+                setStatusMessage(QStringLiteral("串口状态：%1").arg(txt));
                 setConnected(s == ZSIConnection::State::Connected);
             });
 
@@ -371,6 +371,11 @@ void ZSApplication::clearScreen()
     if (m_adapter) m_adapter->clearScreen();
 }
 
+void ZSApplication::cancelSelection()
+{
+    if (m_adapter) m_adapter->cancelSelection();
+}
+
 /* ---------------- 查找 ---------------- */
 
 int ZSApplication::findText(const QString &query)
@@ -431,11 +436,19 @@ void ZSApplication::applyFindMatch(int index)
 {
     if (!m_view || index < 0 || index >= m_findCount)
         return;
-    const int off = m_findOffsets[index];
-    const int lineStart = m_findText.lastIndexOf(QLatin1Char('\n'), off - 1) + 1;
-    const int col = off - lineStart;
-    const int absLine = m_findText.left(off).count(QLatin1Char('\n'));
-    const int len = m_findQuery.length();
-    m_view->setFindHighlight(absLine, col, len);
-    m_view->scrollToAbsLine(absLine);
+    QVector<ZSFindMatch> matches;
+    matches.reserve(m_findCount);
+    int currentAbsLine = -1;
+    for (int i = 0; i < m_findCount; ++i) {
+        const int off = m_findOffsets.at(i);
+        const int lineStart = m_findText.lastIndexOf(QLatin1Char('\n'), off - 1) + 1;
+        ZSFindMatch fm;
+        fm.absLine = m_findText.left(off).count(QLatin1Char('\n'));
+        fm.col = off - lineStart;
+        fm.len = m_findQuery.length();
+        matches.append(fm);
+        if (i == index) currentAbsLine = fm.absLine;
+    }
+    m_view->setFindMatches(matches, index);
+    m_view->scrollToAbsLine(currentAbsLine);
 }
