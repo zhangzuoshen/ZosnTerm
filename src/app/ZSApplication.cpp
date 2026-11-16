@@ -5,6 +5,7 @@
 #include "ZSIConnection.h"
 #include "ZSSessionRepository.h"
 #include "ZSConfigStore.h"
+#include "ZSPlatformPaths.h"
 
 #include <QtGlobal>   // Q_OS_WIN
 #include <QSerialPortInfo>
@@ -194,6 +195,11 @@ void ZSApplication::closeSerialSession()
 QStringList ZSApplication::sessionNames() const
 {
     return m_repo->profileNames();
+}
+
+QString ZSApplication::sessionStorePath() const
+{
+    return ZSPlatformPaths::sessionStorePath();
 }
 
 QVariantList ZSApplication::sessionList() const

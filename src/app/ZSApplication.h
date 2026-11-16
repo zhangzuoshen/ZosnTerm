@@ -55,6 +55,8 @@ public:
     Q_INVOKABLE QStringList sessionNames() const;
     /* M6：返回 [{name,port,baudRate,dataBits,stopBits,parity,flow}, ...]，供侧栏 ListView 使用。 */
     Q_INVOKABLE QVariantList sessionList() const;
+    /* 会话配置文件在本地磁盘的完整路径（供新建会话对话框展示）。 */
+    Q_INVOKABLE QString sessionStorePath() const;
     Q_INVOKABLE void saveSession(const QString &name, const QString &port,
                                  int baudRate, int dataBits, int stopBits,
                                  int parity, int flow,

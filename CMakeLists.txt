@@ -83,6 +83,7 @@ qt_policy(SET QTP0004 NEW)
         QML_FILES
             src/qml/ZSMainWindow.qml
             src/qml/ZSSettingsDlg.qml
+            src/qml/ZSNewSessionDlg.qml
     )
 
     # 各业务子目录加入包含路径，使 #include "Xxx.h" 裸名可解析

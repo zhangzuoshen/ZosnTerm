@@ -107,8 +107,13 @@ Window {
                         font.pointSize: 11
                     }
                     onClicked: {
-                        applyParams(ZSApplication.availablePorts()[0] || "COM1", 9600, 8, 1, 0, 0);
-                        portCombo.forceActiveFocus();
+                        newSessionDlg.openWith(portCombo.displayText,
+                                               baudCombo.currentValue,
+                                               dataCombo.currentValue,
+                                               stopCombo.currentValue,
+                                               parityCombo.currentValue,
+                                               flowCombo.currentValue,
+                                               encCombo.currentValue);
                     }
                 }
 
@@ -519,6 +524,19 @@ Window {
 
     ZSSettingsDlg {
         id: settingsDlg
+    }
+
+    ZSNewSessionDlg {
+        id: newSessionDlg
+        onSaved: function(name) {
+            refreshSessions();
+            for (var i = 0; i < sessionModel.length; ++i) {
+                if (sessionModel[i].name === name) {
+                    sessList.currentIndex = i;
+                    break;
+                }
+            }
+        }
     }
 
     Menu {
