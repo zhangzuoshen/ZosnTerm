@@ -174,8 +174,15 @@ void ZSPuTTYBackendAdapter::resizeGrid(int cols, int rows)
 {
     m_cols = qMax(1, cols);
     m_rows = qMax(1, rows);
-    if (m_open && m_term)
+    if (m_open && m_term) {
         zs_term_size(m_term, m_rows, m_cols, 0);
+        /* M14: term_size() only schedules a repaint (term_schedule_update);
+         * run it now so the screen is restored immediately instead of
+         * flashing blank until the next serial byte / 30ms tick. */
+        zs_term_update(m_term);
+        if (m_view)
+            m_view->update();
+    }
 }
 
 void ZSPuTTYBackendAdapter::selectAll()

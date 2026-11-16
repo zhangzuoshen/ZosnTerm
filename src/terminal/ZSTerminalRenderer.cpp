@@ -37,10 +37,22 @@ void ZSTerminalRenderer::setGrid(int cols, int rows)
 {
     if (cols < 1) cols = 1;
     if (rows < 1) rows = 1;
+    const QImage old = m_img;
+    const int oldCols = m_cols, oldRows = m_rows;
     m_cols = cols;
     m_rows = rows;
     m_img = QImage(cols * m_cellW, rows * m_cellH, QImage::Format_RGB32);
     m_img.fill(m_palette[258]); /* default background */
+    /* M14: keep what is already on screen across a resize. Without this the
+     * freshly allocated image stays blank until some later term_update().
+     * A connected session recovers on the next 30ms tick, but a disconnected
+     * one (engine already freed) has no repaint source and stays wiped. */
+    if (!old.isNull() && oldCols > 0 && oldRows > 0) {
+        QPainter p(&m_img);
+        const int cw = qMin(oldCols, cols) * m_cellW;
+        const int ch = qMin(oldRows, rows) * m_cellH;
+        p.drawImage(0, 0, old, 0, 0, cw, ch);
+    }
     emit resized();
 }
 
