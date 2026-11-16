@@ -320,7 +320,7 @@ Window {
                             MouseArea {
                                 anchors.fill: parent
                                 acceptedButtons: Qt.LeftButton | Qt.RightButton
-                                onClicked: {
+                                onClicked: function(mouse) {
                                     if (mouse.button === Qt.RightButton) {
                                         tabCtxMenu.sessionName = modelData.name
                                         var p = mapToItem(root.contentItem, mouse.x, mouse.y)
@@ -372,7 +372,7 @@ Window {
                 MouseArea {
                     anchors.fill: parent
                     acceptedButtons: Qt.RightButton
-                    onPressed: {
+                    onPressed: function(mouse) {
                         ZSApplication.cancelSelection()
                         var p = term.mapToItem(root.contentItem, mouse.x, mouse.y)
                         ctxMenu.popup(p.x, p.y)
