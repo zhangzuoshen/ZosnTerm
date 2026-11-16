@@ -26,35 +26,29 @@ Window {
     property bool sideCollapsed: false
     property var sessionModel: []
 
-    // 把一组串口参数回填到各 ComboBox。
-    function applyParams(port, baud, data, stop, parity, flow, codepage) {
-        if (portCombo.find(port) >= 0) portCombo.currentIndex = portCombo.find(port);
-        else portCombo.editText = port;
-        baudCombo.currentIndex = baudCombo.indexOfValue(baud);
-        dataCombo.currentIndex = dataCombo.indexOfValue(data);
-        stopCombo.currentIndex = stopCombo.indexOfValue(stop);
-        parityCombo.currentIndex = parityCombo.indexOfValue(parity);
-        flowCombo.currentIndex = flowCombo.indexOfValue(flow);
-        encCombo.currentIndex = encCombo.indexOfValue((codepage && codepage !== "") ? codepage : ZSApplication.defaultEncoding());
-    }
+    property string activeSession: ""
+
     function refreshSessions() { sessionModel = ZSApplication.sessionList(); }
 
+    // 打开新建会话对话框，用上次使用的参数作为默认值。
+    function openNewSession() {
+        var last = ZSApplication.lastParams()
+        newSessionDlg.openWith(last.port || "",
+                               last.baudRate || 9600,
+                               last.dataBits || 8,
+                               last.stopBits || 1,
+                               last.parity || 0,
+                               last.flow || 0,
+                               last.codepage || ZSApplication.defaultEncoding())
+    }
+
     Component.onCompleted: {
-        portCombo.model = ZSApplication.availablePorts();
-        encCombo.currentIndex = encCombo.indexOfValue(ZSApplication.defaultEncoding());
-        refreshSessions();
-        var last = ZSApplication.lastParams();
-        if (last.port !== undefined && last.port !== "")
-            applyParams(last.port, last.baudRate, last.dataBits,
-                        last.stopBits, last.parity, last.flow, last.codepage);
+        refreshSessions()
     }
 
     Connections {
         target: ZSApplication
-        function onConnectionParamsApplied(port, baud, data, stop, parity, flow, codepage) {
-            applyParams(port, baud, data, stop, parity, flow, codepage);
-        }
-        function onConnectionStateChanged(c) { /* 各控件通过属性绑定响应 */ }
+        function onConnectionStateChanged(c) { /* 选项卡连接圆点通过属性绑定响应 */ }
     }
 
     RowLayout {
@@ -106,15 +100,7 @@ Window {
                         horizontalAlignment: Text.AlignHCenter
                         font.pointSize: 11
                     }
-                    onClicked: {
-                        newSessionDlg.openWith(portCombo.displayText,
-                                               baudCombo.currentValue,
-                                               dataCombo.currentValue,
-                                               stopCombo.currentValue,
-                                               parityCombo.currentValue,
-                                               flowCombo.currentValue,
-                                               encCombo.currentValue);
-                    }
+                    onClicked: openNewSession()
                 }
 
                 ScrollView {
@@ -136,6 +122,7 @@ Window {
                             }
                             onClicked: {
                                 sessList.currentIndex = index;
+                                activeSession = modelData.name;
                                 ZSApplication.openSession(modelData.name);
                             }
                             RowLayout {
@@ -218,7 +205,7 @@ Window {
             Layout.fillHeight: true
             spacing: 0
 
-            // --- 顶部参数工具栏 ---
+            // --- 顶部工具条（串口参数已移至“新建会话”对话框；连接改用会话选项卡右键） ---
             ToolBar {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 46
@@ -251,127 +238,16 @@ Window {
                         }
                     }
 
-                    ComboBox {
-                        id: portCombo
-                        editable: true
-                        implicitWidth: 120
-                    }
-                    ComboBox {
-                        id: baudCombo
-                        implicitWidth: 86
-                        valueRole: "v"
-                        textRole: "t"
-                        model: [
-                            { t: "9600",   v: 9600 },
-                            { t: "19200",  v: 19200 },
-                            { t: "38400",  v: 38400 },
-                            { t: "57600",  v: 57600 },
-                            { t: "115200", v: 115200 },
-                            { t: "460800", v: 460800 },
-                            { t: "921600", v: 921600 }
-                        ]
-                        currentIndex: 0
-                    }
-                    ComboBox {
-                        id: dataCombo
-                        implicitWidth: 60
-                        valueRole: "v"
-                        textRole: "t"
-                        model: [
-                            { t: "5", v: 5 }, { t: "6", v: 6 },
-                            { t: "7", v: 7 }, { t: "8", v: 8 }
-                        ]
-                        currentIndex: 3
-                    }
-                    ComboBox {
-                        id: stopCombo
-                        implicitWidth: 60
-                        valueRole: "v"
-                        textRole: "t"
-                        model: [
-                            { t: "1",   v: 1 },
-                            { t: "1.5", v: 3 },
-                            { t: "2",   v: 2 }
-                        ]
-                        currentIndex: 0
-                    }
-                    ComboBox {
-                        id: parityCombo
-                        implicitWidth: 68
-                        valueRole: "v"
-                        textRole: "t"
-                        model: [
-                            { t: "无",   v: 0 },
-                            { t: "奇",   v: 1 },
-                            { t: "偶",   v: 2 },
-                            { t: "标记", v: 3 },
-                            { t: "空格", v: 4 }
-                        ]
-                        currentIndex: 0
-                    }
-                    ComboBox {
-                        id: flowCombo
-                        implicitWidth: 86
-                        valueRole: "v"
-                        textRole: "t"
-                        model: [
-                            { t: "无",       v: 0 },
-                            { t: "XON/XOFF", v: 1 },
-                            { t: "RTS/CTS",  v: 2 }
-                        ]
-                        currentIndex: 0
-                    }
-                    ComboBox {
-                        id: encCombo
-                        implicitWidth: 104
-                        textRole: "label"
-                        valueRole: "cp"
-                        model: ZSApplication.availableEncodings()
+                    Label {
+                        text: "串口终端"
+                        color: textDark
+                        font.bold: true
+                        font.pointSize: 12
+                        Layout.leftMargin: 4
                     }
 
                     Item { Layout.fillWidth: true }
 
-                    Button {
-                        id: connectBtn
-                        text: "连接"
-                        enabled: !ZSApplication.connected
-                        implicitWidth: 76
-                        background: Rectangle {
-                            color: (connectBtn.hovered && connectBtn.enabled) ? mobaBlueDark : mobaBlue
-                            radius: 4
-                        }
-                        contentItem: Label {
-                            text: connectBtn.text
-                            color: "#ffffff"
-                            horizontalAlignment: Text.AlignHCenter
-                            font.pointSize: 11
-                        }
-                        onClicked: ZSApplication.connectSerial(
-                            portCombo.displayText,
-                            baudCombo.currentValue,
-                            dataCombo.currentValue,
-                            stopCombo.currentValue,
-                            parityCombo.currentValue,
-                            flowCombo.currentValue,
-                            encCombo.currentValue)
-                    }
-                    Button {
-                        id: disconnectBtn
-                        text: "断开"
-                        enabled: ZSApplication.connected
-                        implicitWidth: 76
-                        background: Rectangle {
-                            color: (disconnectBtn.hovered && disconnectBtn.enabled) ? "#a93226" : "#c0392b"
-                            radius: 4
-                        }
-                        contentItem: Label {
-                            text: disconnectBtn.text
-                            color: "#ffffff"
-                            horizontalAlignment: Text.AlignHCenter
-                            font.pointSize: 11
-                        }
-                        onClicked: ZSApplication.closeSerialSession()
-                    }
                     Button {
                         id: settingsBtn
                         text: "设置"
@@ -392,10 +268,10 @@ Window {
                 }
             }
 
-            // --- 标签页栏 ---
+            // --- 会话选项卡栏（左键选中，右键连接/断开/删除） ---
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 34
+                Layout.preferredHeight: 36
                 color: "#dfe5ec"
                 Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: border }
 
@@ -405,39 +281,75 @@ Window {
                     anchors.rightMargin: 6
                     spacing: 4
 
-                    Rectangle {
-                        height: 28
-                        width: Math.max(140, tabLabel.implicitWidth + 28)
-                        color: "#ffffff"
-                        border.color: mobaBlue
-                        border.width: 1
-                        radius: 4
-                        Rectangle { width: 3; height: parent.height; color: mobaBlue; radius: 2 }
+                    Repeater {
+                        model: sessionModel
+                        Rectangle {
+                            Layout.preferredHeight: 28
+                            Layout.preferredWidth: Math.max(120, sessTabLabel.implicitWidth + 40)
+                            color: (activeSession === modelData.name) ? "#ffffff" : "#e8edf3"
+                            border.color: (activeSession === modelData.name) ? mobaBlue : border
+                            border.width: 1
+                            radius: 4
 
-                        Label {
-                            id: tabLabel
-                            text: ZSApplication.connectionSummary !== ""
-                                  ? ZSApplication.connectionSummary : "未连接"
-                            color: textDark
-                            font.pointSize: 11
-                            anchors.verticalCenter: parent.verticalCenter
-                            leftPadding: 12
+                            Rectangle {
+                                width: 3; height: parent.height
+                                color: (activeSession === modelData.name) ? mobaBlue : "#b8c2ce"
+                                radius: 2
+                            }
+                            Label {
+                                id: sessTabLabel
+                                text: modelData.name
+                                color: (activeSession === modelData.name) ? mobaBlue : textDark
+                                font.bold: (activeSession === modelData.name)
+                                font.pointSize: 11
+                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.left: parent.left
+                                anchors.leftMargin: 11
+                                anchors.right: parent.right
+                                anchors.rightMargin: 16
+                                elide: Text.ElideRight
+                            }
+                            Rectangle {  // 连接中的绿色指示点
+                                anchors.right: parent.right
+                                anchors.rightMargin: 8
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 7; height: 7; radius: 4
+                                color: "#27ae60"
+                                visible: ZSApplication.connected && activeSession === modelData.name
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                onClicked: {
+                                    if (mouse.button === Qt.RightButton) {
+                                        tabCtxMenu.sessionName = modelData.name
+                                        var p = mapToItem(root.contentItem, mouse.x, mouse.y)
+                                        tabCtxMenu.popup(p.x, p.y)
+                                    } else {
+                                        activeSession = modelData.name
+                                        sessList.currentIndex = index
+                                    }
+                                }
+                            }
                         }
                     }
 
                     ToolButton {
                         text: "+"
                         width: 28; height: 28
-                        enabled: false
-                        opacity: 0.5
-                        onClicked: {
-                            applyParams(ZSApplication.availablePorts()[0] || "COM1", 9600, 8, 1, 0, 0);
-                            portCombo.forceActiveFocus();
-                        }
+                        ToolTip.text: "新建会话"
+                        ToolTip.visible: hovered
+                        onClicked: openNewSession()
                         background: Rectangle {
                             color: parent.hovered ? sideHover : "transparent"
                             border.color: border
                             radius: 4
+                        }
+                        contentItem: Label {
+                            text: "+"; color: textDark
+                            font.pointSize: 16
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
                         }
                     }
 
@@ -533,8 +445,37 @@ Window {
             for (var i = 0; i < sessionModel.length; ++i) {
                 if (sessionModel[i].name === name) {
                     sessList.currentIndex = i;
+                    activeSession = name;
                     break;
                 }
+            }
+        }
+    }
+
+    Menu {
+        id: tabCtxMenu
+        property string sessionName: ""
+        MenuItem {
+            text: "连接"
+            enabled: !ZSApplication.connected
+            onTriggered: {
+                activeSession = tabCtxMenu.sessionName
+                ZSApplication.openSession(tabCtxMenu.sessionName)
+            }
+        }
+        MenuItem {
+            text: "断开"
+            enabled: ZSApplication.connected
+            onTriggered: ZSApplication.closeSerialSession()
+        }
+        MenuSeparator { }
+        MenuItem {
+            text: "删除会话"
+            onTriggered: {
+                ZSApplication.deleteSession(tabCtxMenu.sessionName)
+                refreshSessions()
+                if (activeSession === tabCtxMenu.sessionName) activeSession = ""
+                sessList.currentIndex = -1
             }
         }
     }
