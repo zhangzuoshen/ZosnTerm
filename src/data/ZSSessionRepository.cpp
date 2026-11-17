@@ -80,6 +80,14 @@ ZSSerialProfile ZSSessionRepository::profileFromObject(const QJsonObject &obj) c
     p.parity = obj.value(QStringLiteral("parity")).toInt(0);
     p.flow = obj.value(QStringLiteral("flow")).toInt(0);
     p.codepage = obj.value(QStringLiteral("codepage")).toString();
+    p.showTimestamp = obj.value(QStringLiteral("showTimestamp")).toBool(false);
+    p.hexDisplay = obj.value(QStringLiteral("hexDisplay")).toBool(false);
+    p.localEcho = obj.value(QStringLiteral("localEcho")).toBool(false);
+    p.autoScroll = obj.value(QStringLiteral("autoScroll")).toBool(true);
+    p.autoReconnect = obj.value(QStringLiteral("autoReconnect")).toBool(false);
+    p.crlf = obj.value(QStringLiteral("crlf")).toBool(false);
+    p.logEnabled = obj.value(QStringLiteral("logEnabled")).toBool(false);
+    p.logPath = obj.value(QStringLiteral("logPath")).toString();
     return p;
 }
 
@@ -93,6 +101,14 @@ QJsonObject ZSSessionRepository::objectFromProfile(const ZSSerialProfile &p) con
     obj.insert(QStringLiteral("parity"), p.parity);
     obj.insert(QStringLiteral("flow"), p.flow);
     obj.insert(QStringLiteral("codepage"), p.codepage);
+    obj.insert(QStringLiteral("showTimestamp"), p.showTimestamp);
+    obj.insert(QStringLiteral("hexDisplay"), p.hexDisplay);
+    obj.insert(QStringLiteral("localEcho"), p.localEcho);
+    obj.insert(QStringLiteral("autoScroll"), p.autoScroll);
+    obj.insert(QStringLiteral("autoReconnect"), p.autoReconnect);
+    obj.insert(QStringLiteral("crlf"), p.crlf);
+    obj.insert(QStringLiteral("logEnabled"), p.logEnabled);
+    obj.insert(QStringLiteral("logPath"), p.logPath);
     return obj;
 }
 

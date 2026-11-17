@@ -17,6 +17,18 @@ struct ZSSerialProfile
     int parity = 0;
     int flow = 0;
     QString codepage = "UTF-8";
+
+    // M15.1 会话级终端选项（对应 Figma new-session-light）
+    bool showTimestamp = false;
+    bool hexDisplay = false;
+    bool localEcho = false;
+    bool autoScroll = true;
+    bool autoReconnect = false;
+    bool crlf = false;
+
+    // M15.1 会话级日志
+    bool logEnabled = false;
+    QString logPath;
 };
 
 // 会话持久化仓库（M4 落地：JSON 文件存储于 ZSPlatformPaths::sessionStorePath()）。

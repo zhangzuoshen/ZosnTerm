@@ -9,6 +9,8 @@
 
 #include <QtGlobal>   // Q_OS_WIN
 #include <QSerialPortInfo>
+#include <QSerialPort>
+#include <QDir>
 #include <QColor>
 #include <QFont>
 #include <QFontDatabase>
@@ -329,6 +331,15 @@ QVariantList ZSApplication::sessionList() const
         m.insert(QStringLiteral("stopBits"), p.stopBits);
         m.insert(QStringLiteral("parity"), p.parity);
         m.insert(QStringLiteral("flow"), p.flow);
+        m.insert(QStringLiteral("codepage"), p.codepage);
+        m.insert(QStringLiteral("showTimestamp"), p.showTimestamp);
+        m.insert(QStringLiteral("hexDisplay"), p.hexDisplay);
+        m.insert(QStringLiteral("localEcho"), p.localEcho);
+        m.insert(QStringLiteral("autoScroll"), p.autoScroll);
+        m.insert(QStringLiteral("autoReconnect"), p.autoReconnect);
+        m.insert(QStringLiteral("crlf"), p.crlf);
+        m.insert(QStringLiteral("logEnabled"), p.logEnabled);
+        m.insert(QStringLiteral("logPath"), p.logPath);
         out.append(m);
     }
     return out;
@@ -336,7 +347,8 @@ QVariantList ZSApplication::sessionList() const
 
 void ZSApplication::saveSession(const QString &name, const QString &port,
                                int baudRate, int dataBits, int stopBits,
-                               int parity, int flow, const QString &codepage)
+                               int parity, int flow, const QString &codepage,
+                               const QVariantMap &extras)
 {
     QString nm = name.trimmed();
     if (nm.isEmpty()) {
@@ -351,8 +363,69 @@ void ZSApplication::saveSession(const QString &name, const QString &port,
     p.parity = parity;
     p.flow = flow;
     p.codepage = codepage;
+    p.showTimestamp = extras.value(QStringLiteral("showTimestamp"), p.showTimestamp).toBool();
+    p.hexDisplay    = extras.value(QStringLiteral("hexDisplay"), p.hexDisplay).toBool();
+    p.localEcho     = extras.value(QStringLiteral("localEcho"), p.localEcho).toBool();
+    p.autoScroll    = extras.value(QStringLiteral("autoScroll"), p.autoScroll).toBool();
+    p.autoReconnect = extras.value(QStringLiteral("autoReconnect"), p.autoReconnect).toBool();
+    p.crlf          = extras.value(QStringLiteral("crlf"), p.crlf).toBool();
+    p.logEnabled    = extras.value(QStringLiteral("logEnabled"), p.logEnabled).toBool();
+    p.logPath       = extras.value(QStringLiteral("logPath"), p.logPath).toString();
     m_repo->saveProfile(nm, p);
     setStatusMessage(QStringLiteral("已保存会话：%1").arg(nm));
+}
+
+QString ZSApplication::testSerial(const QString &port, int baudRate, int dataBits,
+                                  int stopBits, int parity, int flow) const
+{
+    if (port.trimmed().isEmpty())
+        return QStringLiteral("请先选择串口");
+    QSerialPort sp(port.trimmed());
+    sp.setBaudRate(baudRate);
+    sp.setDataBits(static_cast<QSerialPort::DataBits>(dataBits));
+    sp.setStopBits(stopBits == 2 ? QSerialPort::TwoStop
+                   : stopBits == 3 ? QSerialPort::OneAndHalfStop
+                                   : QSerialPort::OneStop);
+    sp.setParity(parity == 1 ? QSerialPort::OddParity
+                : parity == 2 ? QSerialPort::EvenParity
+                : parity == 3 ? QSerialPort::MarkParity
+                : parity == 4 ? QSerialPort::SpaceParity
+                              : QSerialPort::NoParity);
+    sp.setFlowControl(flow == 1 ? QSerialPort::SoftwareControl
+                    : flow == 2 ? QSerialPort::HardwareControl
+                                : QSerialPort::NoFlowControl);
+    if (!sp.open(QIODevice::ReadWrite))
+        return QStringLiteral("打开失败：%1").arg(sp.errorString());
+    sp.close();
+    return QString();
+}
+
+QString ZSApplication::defaultLogPath() const
+{
+    return QDir::homePath() + QStringLiteral("/ZosnTerm/logs");
+}
+
+QVariantMap ZSApplication::sessionConfig(const QString &name) const
+{
+    ZSSerialProfile p = m_repo->loadProfile(name);
+    QVariantMap m;
+    m.insert(QStringLiteral("name"), name);
+    m.insert(QStringLiteral("port"), p.port);
+    m.insert(QStringLiteral("baudRate"), p.baudRate);
+    m.insert(QStringLiteral("dataBits"), p.dataBits);
+    m.insert(QStringLiteral("stopBits"), p.stopBits);
+    m.insert(QStringLiteral("parity"), p.parity);
+    m.insert(QStringLiteral("flow"), p.flow);
+    m.insert(QStringLiteral("codepage"), p.codepage);
+    m.insert(QStringLiteral("showTimestamp"), p.showTimestamp);
+    m.insert(QStringLiteral("hexDisplay"), p.hexDisplay);
+    m.insert(QStringLiteral("localEcho"), p.localEcho);
+    m.insert(QStringLiteral("autoScroll"), p.autoScroll);
+    m.insert(QStringLiteral("autoReconnect"), p.autoReconnect);
+    m.insert(QStringLiteral("crlf"), p.crlf);
+    m.insert(QStringLiteral("logEnabled"), p.logEnabled);
+    m.insert(QStringLiteral("logPath"), p.logPath);
+    return m;
 }
 
 void ZSApplication::loadSession(const QString &name)
@@ -407,6 +480,14 @@ QVariantMap ZSApplication::lastParams() const
     m.insert(QStringLiteral("parity"), p.parity);
     m.insert(QStringLiteral("flow"), p.flow);
     m.insert(QStringLiteral("codepage"), p.codepage);
+    m.insert(QStringLiteral("showTimestamp"), p.showTimestamp);
+    m.insert(QStringLiteral("hexDisplay"), p.hexDisplay);
+    m.insert(QStringLiteral("localEcho"), p.localEcho);
+    m.insert(QStringLiteral("autoScroll"), p.autoScroll);
+    m.insert(QStringLiteral("autoReconnect"), p.autoReconnect);
+    m.insert(QStringLiteral("crlf"), p.crlf);
+    m.insert(QStringLiteral("logEnabled"), p.logEnabled);
+    m.insert(QStringLiteral("logPath"), p.logPath);
     return m;
 }
 

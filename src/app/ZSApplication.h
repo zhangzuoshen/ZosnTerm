@@ -74,11 +74,19 @@ public:
     Q_INVOKABLE QVariantList sessionList() const;
     /* 会话配置文件在本地磁盘的完整路径（供新建会话对话框展示）。 */
     Q_INVOKABLE QString sessionStorePath() const;
+    /* M15.1：测试串口是否可打开；返回空串表示成功，否则为错误描述。 */
+    Q_INVOKABLE QString testSerial(const QString &port, int baudRate, int dataBits,
+                                   int stopBits, int parity, int flow) const;
+    /* M15.1：默认日志目录（用户主目录下 ZosnTerm/logs）。 */
+    Q_INVOKABLE QString defaultLogPath() const;
     Q_INVOKABLE void saveSession(const QString &name, const QString &port,
                                  int baudRate, int dataBits, int stopBits,
                                  int parity, int flow,
-                                 const QString &codepage = QStringLiteral("UTF-8"));
+                                 const QString &codepage = QStringLiteral("UTF-8"),
+                                 const QVariantMap &extras = QVariantMap());
     Q_INVOKABLE void loadSession(const QString &name);
+    /* M15.1：会话完整配置（含终端选项/日志），供新建/编辑对话框回填。 */
+    Q_INVOKABLE QVariantMap sessionConfig(const QString &name) const;
     Q_INVOKABLE void deleteSession(const QString &name);
     /* M6：加载命名会话参数并立即连接（MobaXTerm 双击会话的行为）。 */
     Q_INVOKABLE void openSession(const QString &name);

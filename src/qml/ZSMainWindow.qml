@@ -61,14 +61,7 @@ Window {
     }
 
     function openNewSession() {
-        var last = ZSApplication.lastParams()
-        newSessionDlg.openWith(last.port || "",
-                               last.baudRate || 9600,
-                               last.dataBits || 8,
-                               last.stopBits || 1,
-                               last.parity || 0,
-                               last.flow || 0,
-                               last.codepage || ZSApplication.defaultEncoding())
+        newSessionDlg.openWith(ZSApplication.lastParams())
     }
 
     function connectActive() {
@@ -627,7 +620,7 @@ Window {
 
     ZSNewSessionDlg {
         id: newSessionDlg
-        onSaved: function(name) {
+        onSaved: function(name, connectNow) {
             refreshSessions()
             for (var i = 0; i < sessionModel.length; ++i) {
                 if (sessionModel[i].name === name) {
@@ -636,6 +629,7 @@ Window {
                     break
                 }
             }
+            if (connectNow) ZSApplication.connectSession(name)
         }
     }
 
@@ -651,6 +645,10 @@ Window {
             text: "断开"
             enabled: ZSApplication.connected
             onTriggered: ZSApplication.closeSession(tabCtxMenu.sessionName)
+        }
+        MenuItem {
+            text: "编辑会话"
+            onTriggered: newSessionDlg.openWith(ZSApplication.sessionConfig(tabCtxMenu.sessionName))
         }
         MenuSeparator { }
         MenuItem {

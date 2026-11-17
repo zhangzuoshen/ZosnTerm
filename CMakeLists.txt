@@ -38,7 +38,7 @@ endfunction()
 
 if(ZOSNTERM_BUILD_GUI)
     find_package(Qt6 6.5 REQUIRED COMPONENTS
-        Core Gui Quick Qml QuickControls2 SerialPort)
+        Core Gui Quick Qml QuickControls2 SerialPort QuickDialogs2 QuickDialogs2QuickImpl)
     qt_standard_project_setup()
 # Opt into Qt6 modern CMake policies to silence QTP0001 / QTP0004 dev warnings.
 qt_policy(SET QTP0001 NEW)
@@ -102,6 +102,8 @@ qt_policy(SET QTP0004 NEW)
         Qt6::Quick
         Qt6::Qml
         Qt6::QuickControls2
+        Qt6::QuickDialogs2
+        Qt6::QuickDialogs2QuickImpl
         Qt6::SerialPort
         putty_engine
     )
