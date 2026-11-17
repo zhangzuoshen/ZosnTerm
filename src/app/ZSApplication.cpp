@@ -422,9 +422,9 @@ void ZSApplication::applySettingsToView(ZSTerminalView *view) const
                                         QStringLiteral("DejaVu Sans Mono")).toString();
     const int size = m_config->value(QStringLiteral("appearance/fontSize"), 14).toInt();
     const QColor fg(m_config->value(QStringLiteral("appearance/foreground"),
-                                    QStringLiteral("#c0c0c0")).toString());
+                                    QStringLiteral("#1f2329")).toString());
     const QColor bg(m_config->value(QStringLiteral("appearance/background"),
-                                    QStringLiteral("#000000")).toString());
+                                    QStringLiteral("#ffffff")).toString());
     const QColor cur(m_config->value(QStringLiteral("appearance/cursorColor"),
                                      QStringLiteral("#c0c0c0")).toString());
     const int shape = m_config->value(QStringLiteral("appearance/cursorShape"), 0).toInt();
@@ -588,4 +588,37 @@ void ZSApplication::applyFindMatch(int index)
     }
     m_view->setFindMatches(matches, index);
     m_view->scrollToAbsLine(currentAbsLine);
+}
+
+
+/* ---- M15 底部输入栏发送 ---- */
+void ZSApplication::sendToActiveSession(const QString &text, bool hex)
+{
+    if (!m_adapter || !m_adapter->isOpen() || text.isEmpty())
+        return;
+    QByteArray payload;
+    if (hex) {
+        QString clean;
+        for (int i = 0; i < text.size(); ++i) {
+            if (!text.at(i).isSpace())
+                clean.append(text.at(i));
+        }
+        if (clean.size() % 2 != 0) {
+            setStatusMessage(QStringLiteral("HEX 数据长度必须为偶数"));
+            return;
+        }
+        bool ok = true;
+        for (int i = 0; i < clean.size(); i += 2) {
+            int v = clean.mid(i, 2).toInt(&ok, 16);
+            if (!ok || v < 0 || v > 255) { ok = false; break; }
+            payload.append(static_cast<char>(v));
+        }
+        if (!ok) {
+            setStatusMessage(QStringLiteral("HEX 格式无效"));
+            return;
+        }
+    } else {
+        payload = text.toUtf8();
+    }
+    m_adapter->sendData(payload);
 }

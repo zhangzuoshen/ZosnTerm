@@ -101,6 +101,9 @@ public:
     Q_INVOKABLE void clearScreen();
     Q_INVOKABLE void cancelSelection();
 
+    /* M15: 底部输入栏发送（hex=true 时按十六进制解析文本）。 */
+    Q_INVOKABLE void sendToActiveSession(const QString &text, bool hex = false);
+
     /* ---- 查找 ---- */
     /* 在终端全文中查找 query（大小写不敏感）。返回匹配数量；并通过视图高亮+滚动。 */
     Q_INVOKABLE int findText(const QString &query);
