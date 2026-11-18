@@ -242,116 +242,6 @@ Window {
             }
         }
 
-        // ============ 工具栏 ============
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 42
-            color: toolBg
-            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: border }
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 10; anchors.rightMargin: 10
-                spacing: 4
-
-                // 蓝色新建按钮
-                ToolButton {
-                    id: newBtn; width: 24; height: 24
-                    onClicked: openNewSession()
-                    background: Rectangle { color: accent; radius: 4 }
-                    contentItem: Label { text: "+"; color: "#ffffff"; font.bold: true; font.pointSize: 14;
-                                         horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                    ToolTip.text: "新建会话"; ToolTip.visible: hovered
-                }
-
-                Rectangle { width: 1; height: 18; color: border; Layout.leftMargin: 6; Layout.rightMargin: 4 }
-
-                ToolButton {
-                    id: connBtn; width: 28; height: 26
-                    enabled: activeSession !== "" && !ZSApplication.connected
-                    onClicked: connectActive()
-                    background: Rectangle { color: connBtn.hovered ? sideHover : "transparent"; radius: 4 }
-                    contentItem: Label { text: "⇄"; color: connBtn.enabled ? accent : "#c2c8d0"; font.pointSize: 15;
-                                          horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                    ToolTip.text: "连接"; ToolTip.visible: hovered
-                }
-                ToolButton {
-                    id: discBtn; width: 28; height: 26
-                    enabled: ZSApplication.connected
-                    onClicked: disconnectActive()
-                    background: Rectangle { color: discBtn.hovered ? sideHover : "transparent"; radius: 4 }
-                    contentItem: Label { text: "⤬"; color: discBtn.enabled ? textDark : "#c2c8d0"; font.pointSize: 14;
-                                          horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                    ToolTip.text: "断开"; ToolTip.visible: hovered
-                }
-                ToolButton {
-                    id: clearBtn; width: 28; height: 26
-                    onClicked: ZSApplication.clearScreen()
-                    background: Rectangle { color: clearBtn.hovered ? sideHover : "transparent"; radius: 4 }
-                    contentItem: Label { text: "⌫"; color: textDark; font.pointSize: 14;
-                                          horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                    ToolTip.text: "清屏"; ToolTip.visible: hovered
-                }
-                ToolButton {
-                    id: docBtn; width: 28; height: 26
-                    onClicked: Qt.openUrlExternally("https://github.com/zhangzuoshen/ZosnTerm")
-                    background: Rectangle { color: docBtn.hovered ? sideHover : "transparent"; radius: 4 }
-                    contentItem: Label { text: "▤"; color: textDark; font.pointSize: 14;
-                                          horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                    ToolTip.text: "文档"; ToolTip.visible: hovered
-                }
-
-                Rectangle { width: 1; height: 18; color: border; Layout.leftMargin: 6; Layout.rightMargin: 6 }
-
-                Button {
-                    id: tsBtn; text: "时间戳"; checkable: true; checked: root.showTimestamp
-                    implicitWidth: 58; implicitHeight: 24
-                    onCheckedChanged: root.showTimestamp = checked
-                    background: Rectangle { color: tsBtn.checked ? accentSoft : "#ffffff"
-                                            border.color: tsBtn.checked ? accent : border; border.width: 1; radius: 4 }
-                    contentItem: Label { text: tsBtn.text; color: tsBtn.checked ? accent : textMuted; font.pointSize: 9;
-                                         horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                }
-                Button {
-                    id: hexViewBtn; text: "HEX"; checkable: true; checked: root.hexView
-                    implicitWidth: 44; implicitHeight: 24
-                    onCheckedChanged: root.hexView = checked
-                    background: Rectangle { color: hexViewBtn.checked ? accentSoft : "#ffffff"
-                                            border.color: hexViewBtn.checked ? accent : border; border.width: 1; radius: 4 }
-                    contentItem: Label { text: "HEX"; color: hexViewBtn.checked ? accent : textMuted; font.pointSize: 9;
-                                         horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                }
-                Button {
-                    id: scrollBtn; text: "自动滚动"; checkable: true; checked: root.autoScroll
-                    implicitWidth: 66; implicitHeight: 24
-                    onCheckedChanged: root.autoScroll = checked
-                    background: Rectangle { color: scrollBtn.checked ? accentSoft : "#ffffff"
-                                            border.color: scrollBtn.checked ? accent : border; border.width: 1; radius: 4 }
-                    contentItem: Label { text: scrollBtn.text; color: scrollBtn.checked ? accent : textMuted; font.pointSize: 9;
-                                         horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                }
-
-                Item { Layout.fillWidth: true }
-
-                ToolButton {
-                    id: findBtn; width: 28; height: 26
-                    onClicked: { findBar.visible = true; findInput.forceActiveFocus() }
-                    background: Rectangle { color: findBtn.hovered ? sideHover : "transparent"; radius: 4 }
-                    contentItem: Label { text: "⌕"; color: textDark; font.pointSize: 17;
-                                          horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                    ToolTip.text: "查找"; ToolTip.visible: hovered
-                }
-                ToolButton {
-                    id: settingsBtn; width: 28; height: 26
-                    onClicked: settingsDlg.show()
-                    background: Rectangle { color: settingsBtn.hovered ? sideHover : "transparent"; radius: 4 }
-                    contentItem: Label { text: "⚙"; color: textDark; font.pointSize: 14;
-                                          horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                    ToolTip.text: "设置"; ToolTip.visible: hovered
-                }
-            }
-        }
-
         RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -598,6 +488,116 @@ Window {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 spacing: 0
+
+                // ============ 工具栏 ============
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 42
+                    color: toolBg
+                    Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: border }
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 10; anchors.rightMargin: 10
+                        spacing: 4
+
+                        // 蓝色新建按钮
+                        ToolButton {
+                            id: newBtn; width: 24; height: 24
+                            onClicked: openNewSession()
+                            background: Rectangle { color: accent; radius: 4 }
+                            contentItem: Label { text: "+"; color: "#ffffff"; font.bold: true; font.pointSize: 14;
+                                                 horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                            ToolTip.text: "新建会话"; ToolTip.visible: hovered
+                        }
+
+                        Rectangle { width: 1; height: 18; color: border; Layout.leftMargin: 6; Layout.rightMargin: 4 }
+
+                        ToolButton {
+                            id: connBtn; width: 28; height: 26
+                            enabled: activeSession !== "" && !ZSApplication.connected
+                            onClicked: connectActive()
+                            background: Rectangle { color: connBtn.hovered ? sideHover : "transparent"; radius: 4 }
+                            contentItem: Label { text: "⇄"; color: connBtn.enabled ? accent : "#c2c8d0"; font.pointSize: 15;
+                                                  horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                            ToolTip.text: "连接"; ToolTip.visible: hovered
+                        }
+                        ToolButton {
+                            id: discBtn; width: 28; height: 26
+                            enabled: ZSApplication.connected
+                            onClicked: disconnectActive()
+                            background: Rectangle { color: discBtn.hovered ? sideHover : "transparent"; radius: 4 }
+                            contentItem: Label { text: "⤬"; color: discBtn.enabled ? textDark : "#c2c8d0"; font.pointSize: 14;
+                                                  horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                            ToolTip.text: "断开"; ToolTip.visible: hovered
+                        }
+                        ToolButton {
+                            id: clearBtn; width: 28; height: 26
+                            onClicked: ZSApplication.clearScreen()
+                            background: Rectangle { color: clearBtn.hovered ? sideHover : "transparent"; radius: 4 }
+                            contentItem: Label { text: "⌫"; color: textDark; font.pointSize: 14;
+                                                  horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                            ToolTip.text: "清屏"; ToolTip.visible: hovered
+                        }
+                        ToolButton {
+                            id: docBtn; width: 28; height: 26
+                            onClicked: Qt.openUrlExternally("https://github.com/zhangzuoshen/ZosnTerm")
+                            background: Rectangle { color: docBtn.hovered ? sideHover : "transparent"; radius: 4 }
+                            contentItem: Label { text: "▤"; color: textDark; font.pointSize: 14;
+                                                  horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                            ToolTip.text: "文档"; ToolTip.visible: hovered
+                        }
+
+                        Rectangle { width: 1; height: 18; color: border; Layout.leftMargin: 6; Layout.rightMargin: 6 }
+
+                        Button {
+                            id: tsBtn; text: "时间戳"; checkable: true; checked: root.showTimestamp
+                            implicitWidth: 58; implicitHeight: 24
+                            onCheckedChanged: root.showTimestamp = checked
+                            background: Rectangle { color: tsBtn.checked ? accentSoft : "#ffffff"
+                                                    border.color: tsBtn.checked ? accent : border; border.width: 1; radius: 4 }
+                            contentItem: Label { text: tsBtn.text; color: tsBtn.checked ? accent : textMuted; font.pointSize: 9;
+                                                 horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                        }
+                        Button {
+                            id: hexViewBtn; text: "HEX"; checkable: true; checked: root.hexView
+                            implicitWidth: 44; implicitHeight: 24
+                            onCheckedChanged: root.hexView = checked
+                            background: Rectangle { color: hexViewBtn.checked ? accentSoft : "#ffffff"
+                                                    border.color: hexViewBtn.checked ? accent : border; border.width: 1; radius: 4 }
+                            contentItem: Label { text: "HEX"; color: hexViewBtn.checked ? accent : textMuted; font.pointSize: 9;
+                                                 horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                        }
+                        Button {
+                            id: scrollBtn; text: "自动滚动"; checkable: true; checked: root.autoScroll
+                            implicitWidth: 66; implicitHeight: 24
+                            onCheckedChanged: root.autoScroll = checked
+                            background: Rectangle { color: scrollBtn.checked ? accentSoft : "#ffffff"
+                                                    border.color: scrollBtn.checked ? accent : border; border.width: 1; radius: 4 }
+                            contentItem: Label { text: scrollBtn.text; color: scrollBtn.checked ? accent : textMuted; font.pointSize: 9;
+                                                 horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                        }
+
+                        Item { Layout.fillWidth: true }
+
+                        ToolButton {
+                            id: findBtn; width: 28; height: 26
+                            onClicked: { findBar.visible = true; findInput.forceActiveFocus() }
+                            background: Rectangle { color: findBtn.hovered ? sideHover : "transparent"; radius: 4 }
+                            contentItem: Label { text: "⌕"; color: textDark; font.pointSize: 17;
+                                                  horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                            ToolTip.text: "查找"; ToolTip.visible: hovered
+                        }
+                        ToolButton {
+                            id: settingsBtn; width: 28; height: 26
+                            onClicked: settingsDlg.show()
+                            background: Rectangle { color: settingsBtn.hovered ? sideHover : "transparent"; radius: 4 }
+                            contentItem: Label { text: "⚙"; color: textDark; font.pointSize: 14;
+                                                  horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                            ToolTip.text: "设置"; ToolTip.visible: hovered
+                        }
+                    }
+                }
 
                 // --- 选项卡栏：下划线风格 ---
                 Rectangle {
