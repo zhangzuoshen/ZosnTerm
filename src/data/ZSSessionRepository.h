@@ -29,6 +29,9 @@ struct ZSSerialProfile
     // M15.1 会话级日志
     bool logEnabled = false;
     QString logPath;
+
+    // M16: sidebar grouping label (empty = 默认分组).
+    QString group;
 };
 
 // 会话持久化仓库（M4 落地：JSON 文件存储于 ZSPlatformPaths::sessionStorePath()）。

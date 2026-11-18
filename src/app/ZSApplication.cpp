@@ -340,6 +340,7 @@ QVariantList ZSApplication::sessionList() const
         m.insert(QStringLiteral("crlf"), p.crlf);
         m.insert(QStringLiteral("logEnabled"), p.logEnabled);
         m.insert(QStringLiteral("logPath"), p.logPath);
+        m.insert(QStringLiteral("group"), p.group);
         out.append(m);
     }
     return out;
@@ -371,6 +372,7 @@ void ZSApplication::saveSession(const QString &name, const QString &port,
     p.crlf          = extras.value(QStringLiteral("crlf"), p.crlf).toBool();
     p.logEnabled    = extras.value(QStringLiteral("logEnabled"), p.logEnabled).toBool();
     p.logPath       = extras.value(QStringLiteral("logPath"), p.logPath).toString();
+    p.group         = extras.value(QStringLiteral("group"), p.group).toString();
     m_repo->saveProfile(nm, p);
     setStatusMessage(QStringLiteral("已保存会话：%1").arg(nm));
 }
@@ -425,6 +427,7 @@ QVariantMap ZSApplication::sessionConfig(const QString &name) const
     m.insert(QStringLiteral("crlf"), p.crlf);
     m.insert(QStringLiteral("logEnabled"), p.logEnabled);
     m.insert(QStringLiteral("logPath"), p.logPath);
+    m.insert(QStringLiteral("group"), p.group);
     return m;
 }
 
@@ -488,6 +491,7 @@ QVariantMap ZSApplication::lastParams() const
     m.insert(QStringLiteral("crlf"), p.crlf);
     m.insert(QStringLiteral("logEnabled"), p.logEnabled);
     m.insert(QStringLiteral("logPath"), p.logPath);
+    m.insert(QStringLiteral("group"), p.group);
     return m;
 }
 
@@ -592,6 +596,36 @@ void ZSApplication::clearScreen()
 void ZSApplication::cancelSelection()
 {
     if (m_adapter) m_adapter->cancelSelection();
+}
+
+/* ---------------- M16 状态栏 / 滚动 ---------------- */
+
+qint64 ZSApplication::rxBytes() const
+{
+    return m_adapter ? m_adapter->rxBytes() : 0;
+}
+
+qint64 ZSApplication::txBytes() const
+{
+    return m_adapter ? m_adapter->txBytes() : 0;
+}
+
+int ZSApplication::connectionSeconds() const
+{
+    return m_adapter && m_adapter->isOpen()
+         ? static_cast<int>(m_adapter->connectedSeconds()) : 0;
+}
+
+bool ZSApplication::isSessionConnected(const QString &name) const
+{
+    auto it = m_terms.find(name);
+    return it != m_terms.end() && it.value().adapter
+         && it.value().adapter->isOpen();
+}
+
+void ZSApplication::scrollToBottom()
+{
+    if (m_view) m_view->scrollToBottom();
 }
 
 /* ---------------- 查找 ---------------- */

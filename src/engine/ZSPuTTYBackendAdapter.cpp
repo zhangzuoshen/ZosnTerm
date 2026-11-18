@@ -110,6 +110,9 @@ bool ZSPuTTYBackendAdapter::open()
     connect(&m_timer, &QTimer::timeout, this, &ZSPuTTYBackendAdapter::onTick);
     m_timer.start(30);
 
+    m_rxBytes = 0;
+    m_txBytes = 0;
+    m_connectedAt.start();
     m_open = true;
     emit statusMessage(QStringLiteral("已连接 %1 @ %2 8N1").arg(m_portName).arg(m_baudRate));
     emit stateChanged(State::Connected);
@@ -132,6 +135,11 @@ void ZSPuTTYBackendAdapter::close()
     emit stateChanged(State::Disconnected);
 }
 
+qint64 ZSPuTTYBackendAdapter::connectedSeconds() const
+{
+    return m_open ? m_connectedAt.elapsed() / 1000 : 0;
+}
+
 void ZSPuTTYBackendAdapter::onReadyRead()
 {
     if (!m_open)
@@ -139,6 +147,7 @@ void ZSPuTTYBackendAdapter::onReadyRead()
     const QByteArray data = m_port.readAll();
     if (data.isEmpty())
         return;
+    m_rxBytes += data.size();
     zs_term_data(m_term, data.constData(), (unsigned long)data.size());
     zs_tick(m_term);
     if (m_view)
@@ -156,8 +165,11 @@ void ZSPuTTYBackendAdapter::onTick()
 
 void ZSPuTTYBackendAdapter::sendData(const QByteArray &data)
 {
-    if (m_open && m_port.isOpen())
-        m_port.write(data);
+    if (m_open && m_port.isOpen()) {
+        const qint64 written = m_port.write(data);
+        if (written > 0)
+            m_txBytes += written;
+    }
 }
 
 void ZSPuTTYBackendAdapter::scrollTo(int top, int total, int page)

@@ -112,6 +112,13 @@ public:
     /* M15: 底部输入栏发送（hex=true 时按十六进制解析文本）。 */
     Q_INVOKABLE void sendToActiveSession(const QString &text, bool hex = false);
 
+    /* M16: 状态栏统计 / 每会话连接状态 / 跳到最新。 */
+    Q_INVOKABLE qint64 rxBytes() const;
+    Q_INVOKABLE qint64 txBytes() const;
+    Q_INVOKABLE int connectionSeconds() const;
+    Q_INVOKABLE bool isSessionConnected(const QString &name) const;
+    Q_INVOKABLE void scrollToBottom();
+
     /* ---- 查找 ---- */
     /* 在终端全文中查找 query（大小写不敏感）。返回匹配数量；并通过视图高亮+滚动。 */
     Q_INVOKABLE int findText(const QString &query);

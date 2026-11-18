@@ -5,6 +5,7 @@
 #include <QSerialPort>
 #include <QTimer>
 #include <QPointer>
+#include <QElapsedTimer>
 
 class ZSTerminalView; /* forward decl */
 
@@ -28,6 +29,11 @@ public:
     bool open() override;
     void close() override;
     bool isOpen() const override { return m_open; }
+
+    /* M16: status-bar statistics. */
+    qint64 rxBytes() const { return m_rxBytes; }
+    qint64 txBytes() const { return m_txBytes; }
+    qint64 connectedSeconds() const;
 
     /* Wire the view that hosts this terminal's TermWin. Must be called before
      * open(). */
@@ -89,4 +95,9 @@ private:
     int      m_rows = 24;
 
     bool     m_open = false;
+
+    /* M16: status-bar statistics. */
+    qint64       m_rxBytes = 0;
+    qint64       m_txBytes = 0;
+    QElapsedTimer m_connectedAt;
 };

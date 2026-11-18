@@ -72,6 +72,7 @@ Window {
         crlfCheck.checked      = !!cfg.crlf;
         logCheck.checked       = !!cfg.logEnabled;
         logPathField.text      = cfg.logPath || ZSApplication.defaultLogPath();
+        groupField.text        = cfg.group || "";
 
         dlg.show();
         nameField.forceActiveFocus();
@@ -86,7 +87,8 @@ Window {
             autoReconnect: reconnectCheck.checked,
             crlf: crlfCheck.checked,
             logEnabled: logCheck.checked,
-            logPath: logPathField.text.trim()
+            logPath: logPathField.text.trim(),
+            group: groupField.text.trim()
         };
     }
 
@@ -258,6 +260,15 @@ Window {
                         Layout.fillWidth: true
                         textRole: "label"; valueRole: "cp"
                         model: ZSApplication.availableEncodings()
+                        background: Rectangle { color: "#ffffff"; border.color: "#d0d7e0"; radius: 4 }
+                    }
+                }
+                RowLayout {
+                    Label { text: "分组"; color: "#6b7280"; Layout.preferredWidth: 70 }
+                    TextField {
+                        id: groupField
+                        Layout.fillWidth: true
+                        placeholderText: "例如：开发板（留空为默认分组）"
                         background: Rectangle { color: "#ffffff"; border.color: "#d0d7e0"; radius: 4 }
                     }
                 }

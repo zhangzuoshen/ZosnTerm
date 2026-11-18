@@ -88,6 +88,7 @@ ZSSerialProfile ZSSessionRepository::profileFromObject(const QJsonObject &obj) c
     p.crlf = obj.value(QStringLiteral("crlf")).toBool(false);
     p.logEnabled = obj.value(QStringLiteral("logEnabled")).toBool(false);
     p.logPath = obj.value(QStringLiteral("logPath")).toString();
+    p.group = obj.value(QStringLiteral("group")).toString();
     return p;
 }
 
@@ -109,6 +110,7 @@ QJsonObject ZSSessionRepository::objectFromProfile(const ZSSerialProfile &p) con
     obj.insert(QStringLiteral("crlf"), p.crlf);
     obj.insert(QStringLiteral("logEnabled"), p.logEnabled);
     obj.insert(QStringLiteral("logPath"), p.logPath);
+    obj.insert(QStringLiteral("group"), p.group);
     return obj;
 }
 
